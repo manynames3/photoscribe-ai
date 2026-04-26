@@ -21,5 +21,5 @@ override.tf.json
 .venv/
 node_modules/
 dist/
-.tsbuildinfo
+*.tsbuildinfo
 .wrangler/
