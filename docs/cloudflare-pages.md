@@ -78,6 +78,7 @@ It is configured to deploy on every push:
 
 - pushes to `main` update the production Pages site
 - pushes to other branches create or update branch preview deployments in Pages
+- the workflow can be smoke-tested with a docs-only commit because it has no path filter
 
 Set these GitHub repository variables:
 
