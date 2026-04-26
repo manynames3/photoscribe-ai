@@ -11,6 +11,7 @@ coverage.xml
 .terraform/
 *.tfstate
 *.tfstate.*
+*.tfplan
 crash.log
 override.tf
 override.tf.json
@@ -20,4 +21,5 @@ override.tf.json
 .venv/
 node_modules/
 dist/
+.tsbuildinfo
 .wrangler/
