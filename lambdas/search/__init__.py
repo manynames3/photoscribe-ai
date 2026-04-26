@@ -1,0 +1,2 @@
+"""Search Lambda package."""
+

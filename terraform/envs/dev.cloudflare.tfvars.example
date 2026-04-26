@@ -1,0 +1,6 @@
+extra_frontend_origins = [
+  "https://your-project.pages.dev",
+  "https://photos.example.com",
+]
+
+enable_aws_frontend_hosting = false

@@ -1,0 +1,14 @@
+{
+  "description": "A close-up portrait of hands holding small orange cherry tomatoes. Soft indoor light and shallow depth of field isolate the produce and skin tones against a blurred green background.",
+  "alt_text": "Hands holding a handful of cherry tomatoes.",
+  "seo_caption": "Fresh cherry tomatoes gathered in a pair of hands.",
+  "subjects": ["hands", "cherry tomatoes", "produce"],
+  "mood": "playful",
+  "scene_type": "food",
+  "dominant_colors": ["orange", "cream", "green"],
+  "objects_detected": ["hands", "tomatoes", "sweatshirt"],
+  "lighting": "soft_diffused",
+  "time_of_day": "unknown",
+  "people_count": 2,
+  "aspect_ratio": "landscape"
+}
