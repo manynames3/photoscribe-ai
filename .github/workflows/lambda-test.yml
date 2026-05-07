@@ -23,10 +23,11 @@ jobs:
           python-version: "3.12"
 
       - name: Install test dependencies
-        run: python -m pip install pytest pytest-cov "moto[s3]"
+        run: |
+          python -m pip install pytest pytest-cov "moto[s3]"
+          python -m pip install -r lambdas/ingest/requirements.txt -r lambdas/search/requirements.txt
 
       - name: Run Lambda tests
         env:
           PYTHONPATH: .
         run: pytest lambdas -v --cov=lambdas --cov-report=term-missing
-

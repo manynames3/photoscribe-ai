@@ -1,12 +1,7 @@
 name: terraform-apply
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "terraform/**"
-      - ".github/workflows/terraform-apply.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -46,4 +41,3 @@ jobs:
       - name: Terraform apply
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform apply -auto-approve plan.tfplan
-
