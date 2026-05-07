@@ -4,3 +4,11 @@ extra_frontend_origins = [
 ]
 
 enable_aws_frontend_hosting = false
+
+# Keep false for a public portfolio demo. Set true for a private deployment that
+# requires Cognito JWTs on GET /search.
+enable_api_auth = false
+
+# For a production review queue, set this to "pending_review" and approve assets
+# by updating their DynamoDB asset policy row.
+default_asset_review_status = "approved"

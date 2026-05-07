@@ -11,22 +11,22 @@ const FILTER_GROUPS = [
   {
     key: "mood",
     label: "Mood",
-    options: ["playful", "serene", "confident", "mysterious", "dramatic"],
+    options: ["confident", "serene", "energetic", "neutral", "dramatic"],
   },
   {
     key: "scene_type",
     label: "Scene",
-    options: ["portrait", "lifestyle", "abstract", "interior", "landscape"],
+    options: ["event", "documentary", "product", "portrait", "lifestyle"],
   },
   {
     key: "lighting",
     label: "Lighting",
-    options: ["golden_hour", "soft_diffused", "studio", "low_light"],
+    options: ["studio", "soft_diffused", "mixed", "low_light"],
   },
   {
     key: "time_of_day",
     label: "Time",
-    options: ["morning", "afternoon", "sunset", "night"],
+    options: ["morning", "midday", "afternoon", "unknown"],
   },
 ] as const;
 

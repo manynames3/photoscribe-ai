@@ -3,8 +3,33 @@ variable "account_id" {
   type        = string
 }
 
+variable "asset_policy_table_arn" {
+  description = "ARN of the DynamoDB asset policy table."
+  type        = string
+}
+
+variable "asset_policy_table_name" {
+  description = "Name of the DynamoDB asset policy table."
+  type        = string
+}
+
 variable "claude_model_id" {
   description = "Claude multimodal model ID."
+  type        = string
+}
+
+variable "default_allowed_groups" {
+  description = "Default groups allowed to access restricted assets."
+  type        = list(string)
+}
+
+variable "default_review_status" {
+  description = "Default review status assigned to ingested assets."
+  type        = string
+}
+
+variable "default_visibility" {
+  description = "Default visibility assigned to ingested assets."
   type        = string
 }
 

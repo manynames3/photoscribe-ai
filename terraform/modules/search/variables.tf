@@ -3,9 +3,49 @@ variable "account_id" {
   type        = string
 }
 
+variable "asset_policy_table_arn" {
+  description = "ARN of the DynamoDB asset policy table."
+  type        = string
+}
+
+variable "asset_policy_table_name" {
+  description = "Name of the DynamoDB asset policy table."
+  type        = string
+}
+
+variable "audit_log_table_arn" {
+  description = "ARN of the DynamoDB audit log table."
+  type        = string
+}
+
+variable "audit_log_table_name" {
+  description = "Name of the DynamoDB audit log table."
+  type        = string
+}
+
+variable "audit_log_retention_days" {
+  description = "Number of days search audit records are retained."
+  type        = number
+}
+
+variable "cognito_audience" {
+  description = "JWT audiences accepted by API Gateway."
+  type        = list(string)
+}
+
+variable "cognito_issuer" {
+  description = "JWT issuer accepted by API Gateway."
+  type        = string
+}
+
 variable "embed_model_id" {
   description = "Titan embedding model ID."
   type        = string
+}
+
+variable "enable_api_auth" {
+  description = "Whether the API Gateway route requires JWT authentication."
+  type        = bool
 }
 
 variable "frontend_origins" {
@@ -20,6 +60,11 @@ variable "lambda_name" {
 
 variable "lambda_source_dir" {
   description = "Path to the Lambda source code directory."
+  type        = string
+}
+
+variable "missing_asset_policy_default" {
+  description = "Search behavior for assets without a policy row."
   type        = string
 }
 

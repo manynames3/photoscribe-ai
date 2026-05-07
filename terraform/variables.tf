@@ -48,3 +48,60 @@ variable "embed_model_id" {
   type        = string
   default     = "amazon.titan-embed-text-v2:0"
 }
+
+variable "enable_api_auth" {
+  description = "Whether API Gateway requires Cognito JWT authentication for the search API."
+  type        = bool
+  default     = false
+}
+
+variable "library_role_names" {
+  description = "Role names created as Cognito groups and used by Lambda policy checks."
+  type        = list(string)
+  default     = ["admin", "reviewer", "employee"]
+}
+
+variable "default_asset_review_status" {
+  description = "Initial review status assigned to newly indexed assets."
+  type        = string
+  default     = "approved"
+
+  validation {
+    condition     = contains(["approved", "pending_review", "rejected"], var.default_asset_review_status)
+    error_message = "default_asset_review_status must be approved, pending_review, or rejected."
+  }
+}
+
+variable "default_asset_visibility" {
+  description = "Initial visibility assigned to newly indexed assets."
+  type        = string
+  default     = "library"
+
+  validation {
+    condition     = contains(["library", "restricted"], var.default_asset_visibility)
+    error_message = "default_asset_visibility must be library or restricted."
+  }
+}
+
+variable "default_asset_allowed_groups" {
+  description = "Groups allowed to access assets when visibility is restricted."
+  type        = list(string)
+  default     = ["admin", "reviewer", "employee"]
+}
+
+variable "missing_asset_policy_default" {
+  description = "Search behavior for assets that do not yet have a DynamoDB policy row."
+  type        = string
+  default     = "allow"
+
+  validation {
+    condition     = contains(["allow", "deny"], var.missing_asset_policy_default)
+    error_message = "missing_asset_policy_default must be allow or deny."
+  }
+}
+
+variable "audit_log_retention_days" {
+  description = "Number of days DynamoDB audit log records are retained."
+  type        = number
+  default     = 30
+}

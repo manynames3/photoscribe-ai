@@ -85,6 +85,16 @@ data "aws_iam_policy_document" "logs" {
     actions   = ["s3:GetObject"]
     resources = ["${var.photo_bucket_arn}/*"]
   }
+
+  statement {
+    actions   = ["dynamodb:GetItem"]
+    resources = [var.asset_policy_table_arn]
+  }
+
+  statement {
+    actions   = ["dynamodb:PutItem"]
+    resources = [var.audit_log_table_arn]
+  }
 }
 
 resource "aws_iam_role" "lambda" {
@@ -114,6 +124,10 @@ resource "aws_lambda_function" "this" {
     variables = {
       BEDROCK_EMBED_DIMENSIONS = "1024"
       BEDROCK_EMBED_MODEL_ID   = var.embed_model_id
+      ASSET_POLICY_TABLE_NAME  = var.asset_policy_table_name
+      AUDIT_LOG_RETENTION_DAYS = tostring(var.audit_log_retention_days)
+      AUDIT_LOG_TABLE_NAME     = var.audit_log_table_name
+      MISSING_POLICY_DEFAULT   = var.missing_asset_policy_default
       PHOTO_BUCKET_NAME        = var.photo_bucket_name
       SIGNED_URL_TTL_SECONDS   = "900"
       VECTOR_BUCKET_NAME       = var.vector_bucket_name
@@ -145,10 +159,26 @@ resource "aws_apigatewayv2_integration" "lambda" {
   payload_format_version = "2.0"
 }
 
+resource "aws_apigatewayv2_authorizer" "cognito" {
+  count = var.enable_api_auth ? 1 : 0
+
+  api_id           = aws_apigatewayv2_api.http.id
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+  name             = "${var.lambda_name}-cognito"
+
+  jwt_configuration {
+    audience = var.cognito_audience
+    issuer   = var.cognito_issuer
+  }
+}
+
 resource "aws_apigatewayv2_route" "search" {
-  api_id    = aws_apigatewayv2_api.http.id
-  route_key = "GET /search"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  api_id             = aws_apigatewayv2_api.http.id
+  authorization_type = var.enable_api_auth ? "JWT" : "NONE"
+  authorizer_id      = var.enable_api_auth ? aws_apigatewayv2_authorizer.cognito[0].id : null
+  route_key          = "GET /search"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
 resource "aws_apigatewayv2_stage" "default" {

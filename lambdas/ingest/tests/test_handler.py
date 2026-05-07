@@ -7,6 +7,7 @@ from moto import mock_aws
 
 import boto3
 
+from lambdas.ingest import handler as ingest_handler
 from lambdas.ingest.handler import download_image, handler
 from lambdas.ingest.schema import PhotoMetadata
 
@@ -89,3 +90,25 @@ def test_ingest_handler_skips_unsupported_media_type(monkeypatch) -> None:
 
     assert response["statusCode"] == 200
     assert json.loads(response["body"])["records"] == 1
+
+
+def test_upsert_asset_policy_preserves_review_decisions(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeDynamoDBClient:
+        def update_item(self, **kwargs: object) -> None:
+            captured.update(kwargs)
+
+    monkeypatch.setattr(ingest_handler, "_dynamodb_client", lambda: FakeDynamoDBClient())
+    monkeypatch.setattr(ingest_handler, "ASSET_POLICY_TABLE_NAME", "asset-policy")
+    monkeypatch.setattr(ingest_handler, "DEFAULT_ALLOWED_GROUPS", ["admin", "reviewer", "employee"])
+    monkeypatch.setattr(ingest_handler, "DEFAULT_REVIEW_STATUS", "pending_review")
+    monkeypatch.setattr(ingest_handler, "DEFAULT_VISIBILITY", "restricted")
+
+    ingest_handler.upsert_asset_policy(bucket="photos", key="image.jpg", metadata=_sample_metadata())
+
+    assert captured["TableName"] == "asset-policy"
+    assert captured["Key"] == {"asset_key": {"S": "image.jpg"}}
+    assert "if_not_exists(review_status" in str(captured["UpdateExpression"])
+    assert "if_not_exists(visibility" in str(captured["UpdateExpression"])
+    assert captured["ExpressionAttributeValues"][":allowed_groups"]["S"] == "admin,reviewer,employee"

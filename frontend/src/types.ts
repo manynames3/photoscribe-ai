@@ -14,12 +14,14 @@ export type PhotoResult = {
   key: string;
   lighting: string;
   mood: string;
+  reviewStatus?: string;
   sceneType: string;
   s3Key?: string;
   seoCaption: string;
   source: "preview" | "api";
   thumbnailUrl?: string;
   timeOfDay: string;
+  visibility?: string;
 };
 
 export type SearchResponse = {
@@ -27,4 +29,9 @@ export type SearchResponse = {
   mode: "preview" | "api";
   query: string;
   results: PhotoResult[];
+  securityContext?: {
+    authMode: "anonymous" | "jwt";
+    deniedResults: number;
+    groups: string[];
+  };
 };

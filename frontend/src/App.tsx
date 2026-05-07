@@ -7,7 +7,31 @@ import { PhotoModal } from "./components/PhotoModal";
 import { SearchBar } from "./components/SearchBar";
 import type { PhotoResult, SearchFilters } from "./types";
 
-const SAMPLE_QUERIES = ["cherries in hands", "abstract sunlight", "playful garden harvest"];
+const SAMPLE_QUERIES = [
+  "executive planning session",
+  "doctor using tablet",
+  "warehouse quality inspection",
+  "product demo with customer",
+];
+
+const CONTROL_CARDS = [
+  {
+    label: "Private storage",
+    value: "S3 + signed URLs",
+  },
+  {
+    label: "AI metadata",
+    value: "Claude + Titan",
+  },
+  {
+    label: "Access controls",
+    value: "Cognito-ready",
+  },
+  {
+    label: "Audit trail",
+    value: "DynamoDB TTL",
+  },
+];
 
 export function App() {
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -20,6 +44,11 @@ export function App() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoResult | null>(null);
+  const [securityContext, setSecurityContext] = useState({
+    authMode: "anonymous",
+    deniedResults: 0,
+    groups: [] as string[],
+  });
 
   useEffect(() => {
     function handleKeydown(event: KeyboardEvent) {
@@ -57,10 +86,12 @@ export function App() {
     try {
       const response = await searchPhotos(trimmedQuery, nextFilters);
       setResults(response.results);
+      setSecurityContext(response.securityContext ?? { authMode: "anonymous", deniedResults: 0, groups: [] });
       setSubmittedQuery(response.query);
       setStatus(`${response.message} ${response.results.length} result${response.results.length === 1 ? "" : "s"}.`);
     } catch (caughtError) {
       setResults([]);
+      setSecurityContext({ authMode: "anonymous", deniedResults: 0, groups: [] });
       setSubmittedQuery(trimmedQuery);
       setStatus("Search request failed.");
       setError(caughtError instanceof Error ? caughtError.message : "Unknown error.");
@@ -86,11 +117,20 @@ export function App() {
 
         <section className="hero-panel">
           <p className="eyebrow">PhotoScribe AI</p>
-          <h1>Search photos by meaning instead of filenames.</h1>
+          <h1>Semantic media search for enterprise asset libraries.</h1>
           <p className="hero-copy">
-            A semantic photo library that turns natural-language queries into ranked image matches
-            with mood, scene, and lighting metadata.
+            Turn internal photo libraries into searchable, AI-described assets with private object
+            storage, vector search, short-lived image access, and optional production auth controls.
           </p>
+
+          <div className="control-grid" aria-label="Production control summary">
+            {CONTROL_CARDS.map((card) => (
+              <div className="control-card" key={card.label}>
+                <span>{card.label}</span>
+                <strong>{card.value}</strong>
+              </div>
+            ))}
+          </div>
 
           <div className="chip-row">
             {SAMPLE_QUERIES.map((sample) => (
@@ -144,7 +184,17 @@ export function App() {
                 <h2>{submittedQuery ? `“${submittedQuery}”` : "Waiting for your first search"}</h2>
                 <p className="status-copy">{status}</p>
               </div>
-              <span className="mode-pill">{import.meta.env.VITE_API_URL ? "Live API" : "Preview mode"}</span>
+              <div className="mode-stack">
+                <span className="mode-pill">{import.meta.env.VITE_API_URL ? "Live AWS backend" : "Demo catalog"}</span>
+                <span className="mode-subtle">
+                  {securityContext.authMode === "jwt"
+                    ? `JWT: ${securityContext.groups.join(", ") || "no groups"}`
+                    : "Public demo"}
+                </span>
+                {securityContext.deniedResults ? (
+                  <span className="mode-subtle">{securityContext.deniedResults} policy-filtered</span>
+                ) : null}
+              </div>
             </div>
 
             {error ? <p className="error-banner">{error}</p> : null}

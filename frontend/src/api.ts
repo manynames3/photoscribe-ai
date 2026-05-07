@@ -2,56 +2,64 @@ import type { PhotoResult, SearchFilters, SearchResponse } from "./types";
 
 const PREVIEW_RESULTS: PhotoResult[] = [
   {
-    id: "preview-garden",
-    key: "preview-garden",
+    id: "preview-boardroom",
+    key: "preview-boardroom",
     description:
-      "Two children cup a handful of warm red cherry tomatoes against a soft green garden backdrop with a shallow depth of field.",
-    altText: "Two hands holding a handful of cherry tomatoes.",
-    seoCaption: "Children holding a harvest of cherry tomatoes in soft afternoon light.",
-    mood: "playful",
-    sceneType: "lifestyle",
+      "A leadership team reviews a product launch plan around a conference table with laptops, presentation notes, and clean office lighting.",
+    altText: "Corporate team reviewing a product launch plan in a conference room.",
+    seoCaption: "Executive planning session in a modern conference room.",
+    mood: "confident",
+    reviewStatus: "approved",
+    sceneType: "event",
+    lighting: "studio",
+    timeOfDay: "morning",
+    source: "preview",
+    visibility: "library",
+  },
+  {
+    id: "preview-clinic",
+    key: "preview-clinic",
+    description:
+      "A doctor uses a tablet in a bright hospital hallway while medical staff coordinate patient care in the background.",
+    altText: "Doctor using a tablet in a hospital hallway.",
+    seoCaption: "Healthcare operations image for internal communications.",
+    mood: "serene",
+    reviewStatus: "approved",
+    sceneType: "documentary",
     lighting: "soft_diffused",
     timeOfDay: "afternoon",
     source: "preview",
+    visibility: "restricted",
   },
   {
-    id: "preview-prism",
-    key: "preview-prism",
+    id: "preview-warehouse",
+    key: "preview-warehouse",
     description:
-      "A white bench glows through prismatic lens flare and dreamy golden bokeh, turning a simple outdoor scene into an abstract wash of light.",
-    altText: "White bench in front of blurred trees and prismatic sunlight.",
-    seoCaption: "Prismatic sunlight spills over a white bench in a dreamy abstract outdoor frame.",
-    mood: "mysterious",
-    sceneType: "abstract",
-    lighting: "golden_hour",
-    timeOfDay: "sunset",
-    source: "preview",
-  },
-  {
-    id: "preview-interior",
-    key: "preview-interior",
-    description:
-      "A quiet interior vignette with linen texture, pale wood, and soft window light designed to surface warm editorial search results.",
-    altText: "Quiet interior scene with pale wood and linen.",
-    seoCaption: "Soft window light across pale wood and linen creates a calm editorial interior.",
-    mood: "serene",
-    sceneType: "interior",
-    lighting: "soft_diffused",
-    timeOfDay: "morning",
-    source: "preview",
-  },
-  {
-    id: "preview-portrait",
-    key: "preview-portrait",
-    description:
-      "A direct portrait setup with crisp contrast and structured posing intended to stand in for confident brand and editorial headshots.",
-    altText: "Confident portrait setup with crisp contrast.",
-    seoCaption: "Confident portrait framing with crisp contrast and a clean editorial finish.",
+      "A warehouse operations team performs a quality inspection beside labeled inventory shelves and safety equipment.",
+    altText: "Warehouse team inspecting inventory and safety equipment.",
+    seoCaption: "Operations and compliance image from a warehouse inspection.",
     mood: "confident",
-    sceneType: "portrait",
+    reviewStatus: "pending_review",
+    sceneType: "documentary",
+    lighting: "mixed",
+    timeOfDay: "midday",
+    source: "preview",
+    visibility: "restricted",
+  },
+  {
+    id: "preview-product-demo",
+    key: "preview-product-demo",
+    description:
+      "A customer success manager demonstrates analytics software on a large display during an enterprise product briefing.",
+    altText: "Customer success manager presenting analytics software to clients.",
+    seoCaption: "Enterprise product demo with customer stakeholders.",
+    mood: "energetic",
+    reviewStatus: "approved",
+    sceneType: "event",
     lighting: "studio",
     timeOfDay: "unknown",
     source: "preview",
+    visibility: "library",
   },
 ];
 
@@ -68,7 +76,18 @@ type ApiPhotoResult = Partial<{
   image_url: string;
   distance: number;
   s3_key: string;
+  review_status: string;
+  visibility: string;
 }>;
+
+type ApiSearchResponse = Partial<SearchResponse> & {
+  results?: unknown[];
+  security_context?: Partial<{
+    auth_mode: "anonymous" | "jwt";
+    denied_results: number;
+    groups: string[];
+  }>;
+};
 
 function matchesPreviewQuery(result: PhotoResult, query: string) {
   const haystack = [
@@ -122,12 +141,14 @@ function normalizeApiResults(results: unknown[]): PhotoResult[] {
       mood: item.mood ?? "neutral",
       sceneType: item.scene_type ?? "other",
       lighting: item.lighting ?? "other",
+      reviewStatus: item.review_status,
       timeOfDay: item.time_of_day ?? "unknown",
       thumbnailUrl: item.thumbnail_url,
       imageUrl: item.image_url,
       distance: item.distance,
       s3Key: item.s3_key,
       source: "api",
+      visibility: item.visibility,
     };
   });
 }
@@ -145,10 +166,15 @@ export async function searchPhotos(query: string, filters: SearchFilters): Promi
     const matchingPreviewResults = PREVIEW_RESULTS.filter((result) => matchesPreviewQuery(result, trimmedQuery));
 
     return {
-      message: "Preview mode. Add VITE_API_URL to use the deployed semantic search API.",
+      message: "Demo catalog. Add VITE_API_URL to use the deployed semantic search API.",
       mode: "preview",
       query: trimmedQuery,
       results: applyFilters(matchingPreviewResults, filters),
+      securityContext: {
+        authMode: "anonymous",
+        deniedResults: 0,
+        groups: [],
+      },
     };
   }
 
@@ -160,18 +186,28 @@ export async function searchPhotos(query: string, filters: SearchFilters): Promi
     url.searchParams.set("filter", serializedFilters);
   }
 
-  const response = await fetch(url.toString());
+  const authToken = window.localStorage.getItem("photoscribe.authToken")?.trim();
+  const response = await fetch(url.toString(), {
+    headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
+  });
 
   if (!response.ok) {
     throw new Error(`Search request failed with status ${response.status}.`);
   }
 
-  const payload = (await response.json()) as Partial<SearchResponse> & { results?: unknown[] };
+  const payload = (await response.json()) as ApiSearchResponse;
 
   return {
     message: payload.message ?? "Connected to the deployed semantic search API.",
     mode: "api",
     query: payload.query ?? trimmedQuery,
     results: normalizeApiResults(payload.results ?? []),
+    securityContext: payload.security_context
+      ? {
+          authMode: payload.security_context.auth_mode ?? "anonymous",
+          deniedResults: payload.security_context.denied_results ?? 0,
+          groups: payload.security_context.groups ?? [],
+        }
+      : undefined,
   };
 }

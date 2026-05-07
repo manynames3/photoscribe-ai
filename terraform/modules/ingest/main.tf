@@ -93,6 +93,11 @@ data "aws_iam_policy_document" "logs" {
     actions   = ["s3vectors:PutVectors"]
     resources = [var.vector_index_arn]
   }
+
+  statement {
+    actions   = ["dynamodb:UpdateItem"]
+    resources = [var.asset_policy_table_arn]
+  }
 }
 
 resource "aws_iam_role" "lambda" {
@@ -120,9 +125,13 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = {
+      ASSET_POLICY_TABLE_NAME  = var.asset_policy_table_name
       BEDROCK_CLAUDE_MODEL_ID  = var.claude_model_id
       BEDROCK_EMBED_DIMENSIONS = "1024"
       BEDROCK_EMBED_MODEL_ID   = var.embed_model_id
+      DEFAULT_ALLOWED_GROUPS   = join(",", var.default_allowed_groups)
+      DEFAULT_REVIEW_STATUS    = var.default_review_status
+      DEFAULT_VISIBILITY       = var.default_visibility
       PHOTO_BUCKET_NAME        = var.event_bucket_name
       VECTOR_BUCKET_NAME       = var.vector_bucket_name
       VECTOR_INDEX_NAME        = var.vector_index_name

@@ -29,11 +29,12 @@ export function PhotoCard({ onOpen, result }: PhotoCardProps) {
         <div className="photo-card-meta">
           <span className="meta-pill">{result.mood}</span>
           <span className="meta-subtle">{result.sceneType}</span>
+          {result.reviewStatus ? <span className="meta-subtle">{result.reviewStatus.replace(/_/g, " ")}</span> : null}
         </div>
         <p className="photo-description">{result.description}</p>
         <div className="photo-card-footer">
           <span>{result.timeOfDay.replace(/_/g, " ")}</span>
-          <span>{result.source === "api" ? "live" : "preview"}</span>
+          <span>{result.visibility ?? (result.source === "api" ? "live" : "preview")}</span>
         </div>
       </div>
     </button>

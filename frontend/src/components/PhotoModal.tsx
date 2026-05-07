@@ -62,6 +62,7 @@ export function PhotoModal({ onClose, photo }: PhotoModalProps) {
             <span className="meta-pill">{photo.mood}</span>
             <span className="meta-subtle">{photo.sceneType}</span>
             <span className="meta-subtle">{photo.lighting.replace(/_/g, " ")}</span>
+            {photo.reviewStatus ? <span className="meta-subtle">{photo.reviewStatus.replace(/_/g, " ")}</span> : null}
           </div>
 
           <h3>{photo.seoCaption || photo.description}</h3>
@@ -75,6 +76,14 @@ export function PhotoModal({ onClose, photo }: PhotoModalProps) {
             <div>
               <dt>Time of day</dt>
               <dd>{photo.timeOfDay.replace(/_/g, " ")}</dd>
+            </div>
+            <div>
+              <dt>Visibility</dt>
+              <dd>{photo.visibility ?? "library"}</dd>
+            </div>
+            <div>
+              <dt>Review status</dt>
+              <dd>{photo.reviewStatus?.replace(/_/g, " ") ?? "not managed"}</dd>
             </div>
             <div>
               <dt>S3 key</dt>

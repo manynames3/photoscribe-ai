@@ -43,6 +43,8 @@ locals {
   search_log_group_name   = "/aws/lambda/${local.search_lambda_name}"
   non_filterable_metadata = ["description", "alt_text", "seo_caption", "s3_key", "s3_uri", "subjects_csv", "colors_csv", "objects_csv"]
   frontend_origins        = distinct(compact(concat([var.frontend_origin], var.extra_frontend_origins, var.enable_aws_frontend_hosting ? [module.frontend[0].frontend_url] : [])))
+  cognito_issuer          = var.enable_api_auth ? module.auth[0].issuer : ""
+  cognito_audience        = var.enable_api_auth ? [module.auth[0].user_pool_client_id] : []
 }
 
 module "storage" {
@@ -85,6 +87,23 @@ module "observability" {
   tags                    = local.common_tags
 }
 
+module "governance" {
+  source = "./modules/governance"
+
+  audit_retention_days = var.audit_log_retention_days
+  name_prefix          = local.name_prefix
+  tags                 = local.common_tags
+}
+
+module "auth" {
+  source = "./modules/auth"
+  count  = var.enable_api_auth ? 1 : 0
+
+  name_prefix = local.name_prefix
+  role_names  = var.library_role_names
+  tags        = local.common_tags
+}
+
 module "frontend" {
   source = "./modules/frontend"
   count  = var.enable_aws_frontend_hosting ? 1 : 0
@@ -96,35 +115,49 @@ module "frontend" {
 module "ingest" {
   source = "./modules/ingest"
 
-  account_id         = data.aws_caller_identity.current.account_id
-  claude_model_id    = var.claude_model_id
-  embed_model_id     = var.embed_model_id
-  event_bucket_name  = module.storage.photo_bucket_name
-  lambda_name        = local.ingest_lambda_name
-  lambda_source_dir  = "${path.root}/../lambdas/ingest"
-  partition          = data.aws_partition.current.partition
-  photo_bucket_arn   = module.storage.photo_bucket_arn
-  region             = var.region
-  tags               = local.common_tags
-  vector_bucket_name = module.vectors.vector_bucket_name
-  vector_index_arn   = module.vectors.vector_index_arn
-  vector_index_name  = local.vector_index_name
+  account_id              = data.aws_caller_identity.current.account_id
+  asset_policy_table_arn  = module.governance.asset_policy_table_arn
+  asset_policy_table_name = module.governance.asset_policy_table_name
+  claude_model_id         = var.claude_model_id
+  default_allowed_groups  = var.default_asset_allowed_groups
+  default_review_status   = var.default_asset_review_status
+  default_visibility      = var.default_asset_visibility
+  embed_model_id          = var.embed_model_id
+  event_bucket_name       = module.storage.photo_bucket_name
+  lambda_name             = local.ingest_lambda_name
+  lambda_source_dir       = "${path.root}/../lambdas/ingest"
+  partition               = data.aws_partition.current.partition
+  photo_bucket_arn        = module.storage.photo_bucket_arn
+  region                  = var.region
+  tags                    = local.common_tags
+  vector_bucket_name      = module.vectors.vector_bucket_name
+  vector_index_arn        = module.vectors.vector_index_arn
+  vector_index_name       = local.vector_index_name
 }
 
 module "search" {
   source = "./modules/search"
 
-  account_id         = data.aws_caller_identity.current.account_id
-  embed_model_id     = var.embed_model_id
-  frontend_origins   = local.frontend_origins
-  lambda_name        = local.search_lambda_name
-  lambda_source_dir  = "${path.root}/../lambdas/search"
-  partition          = data.aws_partition.current.partition
-  photo_bucket_arn   = module.storage.photo_bucket_arn
-  photo_bucket_name  = module.storage.photo_bucket_name
-  region             = var.region
-  tags               = local.common_tags
-  vector_bucket_name = module.vectors.vector_bucket_name
-  vector_index_arn   = module.vectors.vector_index_arn
-  vector_index_name  = local.vector_index_name
+  account_id                   = data.aws_caller_identity.current.account_id
+  asset_policy_table_arn       = module.governance.asset_policy_table_arn
+  asset_policy_table_name      = module.governance.asset_policy_table_name
+  audit_log_retention_days     = var.audit_log_retention_days
+  audit_log_table_arn          = module.governance.audit_log_table_arn
+  audit_log_table_name         = module.governance.audit_log_table_name
+  cognito_audience             = local.cognito_audience
+  cognito_issuer               = local.cognito_issuer
+  embed_model_id               = var.embed_model_id
+  enable_api_auth              = var.enable_api_auth
+  frontend_origins             = local.frontend_origins
+  lambda_name                  = local.search_lambda_name
+  lambda_source_dir            = "${path.root}/../lambdas/search"
+  missing_asset_policy_default = var.missing_asset_policy_default
+  partition                    = data.aws_partition.current.partition
+  photo_bucket_arn             = module.storage.photo_bucket_arn
+  photo_bucket_name            = module.storage.photo_bucket_name
+  region                       = var.region
+  tags                         = local.common_tags
+  vector_bucket_name           = module.vectors.vector_bucket_name
+  vector_index_arn             = module.vectors.vector_index_arn
+  vector_index_name            = local.vector_index_name
 }

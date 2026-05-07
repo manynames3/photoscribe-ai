@@ -9,6 +9,7 @@ This directory records the main architecture choices behind PhotoScribe AI.
 - [ADR 0003: Use Bedrock Claude and Titan embeddings](0003-bedrock-claude-titan.md)
 - [ADR 0004: Host the frontend on Cloudflare Pages](0004-cloudflare-pages.md)
 - [ADR 0005: Use pre-signed S3 URLs for demo image access](0005-presigned-s3-urls.md)
+- [ADR 0006: Add optional auth and governance controls](0006-optional-auth-governance.md)
 
 ## Format
 
