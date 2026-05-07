@@ -1,12 +1,6 @@
 name: frontend-build
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "frontend/**"
-      - "terraform/**"
-      - ".github/workflows/frontend-build.yml"
   workflow_dispatch:
 
 permissions:
