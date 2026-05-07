@@ -94,6 +94,42 @@ The workflow builds `frontend/dist` and deploys it with `wrangler pages deploy`.
 
 GitHub Actions still needs access to the repository, and Cloudflare still needs a Pages project with the same project name. The current production branch for the live site is `main`.
 
+## Secret handling
+
+`CLOUDFLARE_API_TOKEN` must stay secret even if the repository is public.
+
+Why:
+
+- the token grants deploy access to the Cloudflare Pages project
+- anyone who gets the token can publish new builds to the site
+- it is an account credential, not a frontend config value
+
+Safe pattern:
+
+- store the token only as a GitHub Actions secret
+- reference it only with `${{ secrets.CLOUDFLARE_API_TOKEN }}`
+- rotate it if it is ever pasted into chat, logs, screenshots, issues, or committed files
+
+Unsafe pattern:
+
+- committing the token to the repository
+- putting it in `README.md`, `.env.example`, workflow literals, or client-side code
+- exposing it in CI logs or screenshots
+
+## Decision summary
+
+This project uses a public-code/private-secret model:
+
+- repository code can be public
+- deployment credentials stay private
+- the browser only receives `VITE_API_URL`; it must never receive `CLOUDFLARE_API_TOKEN`
+
+Rationale:
+
+- `VITE_API_URL` is a public endpoint by design
+- `CLOUDFLARE_API_TOKEN` is a privileged credential
+- public infrastructure docs are fine; public deploy credentials are not
+
 ## Official references
 
 - Cloudflare Pages getting started: https://developers.cloudflare.com/pages/get-started/

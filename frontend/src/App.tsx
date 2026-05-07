@@ -157,6 +157,10 @@ export function App() {
             />
           </section>
         </section>
+
+        <footer className="site-footer">
+          <p>©2026 SUPREME AI VENTURES LLC</p>
+        </footer>
       </main>
 
       <PhotoModal photo={selectedPhoto} onClose={() => setSelectedPhoto(null)} />

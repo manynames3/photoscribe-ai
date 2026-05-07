@@ -538,6 +538,19 @@ img {
   margin: 0;
 }
 
+.site-footer {
+  color: #7a6654;
+  font-size: 0.84rem;
+  margin-top: 24px;
+  position: relative;
+  text-align: center;
+  z-index: 1;
+}
+
+.site-footer p {
+  margin: 0;
+}
+
 @keyframes pulse {
   0% {
     background-position: 200% 0;
