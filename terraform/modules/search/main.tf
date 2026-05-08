@@ -144,6 +144,7 @@ resource "aws_lambda_function" "this" {
       AUDIT_LOG_RETENTION_DAYS = tostring(var.audit_log_retention_days)
       AUDIT_LOG_TABLE_NAME     = var.audit_log_table_name
       MAX_UPLOAD_BYTES         = tostring(var.max_upload_bytes)
+      MAX_VECTOR_DISTANCE      = tostring(var.max_vector_distance)
       MISSING_POLICY_DEFAULT   = var.missing_asset_policy_default
       PHOTO_BUCKET_NAME        = var.photo_bucket_name
       SIGNED_URL_TTL_SECONDS   = "900"

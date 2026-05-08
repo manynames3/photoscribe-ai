@@ -32,6 +32,7 @@ SIGNED_URL_TTL_SECONDS = int(os.environ.get("SIGNED_URL_TTL_SECONDS", "900"))
 UPLOAD_TOKEN_SHA256 = os.environ.get("UPLOAD_TOKEN_SHA256", "").strip().lower()
 UPLOAD_URL_TTL_SECONDS = int(os.environ.get("UPLOAD_URL_TTL_SECONDS", "900"))
 MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_BYTES", str(15 * 1024 * 1024)))
+MAX_VECTOR_DISTANCE = float(os.environ.get("MAX_VECTOR_DISTANCE", "0.8"))
 FILTER_KEYS = {"mood", "scene_type", "lighting", "time_of_day", "people_count", "date_added", "aspect_ratio"}
 PRIVILEGED_GROUPS = {"admin", "reviewer"}
 ALLOWED_UPLOAD_TYPES = {
@@ -395,6 +396,9 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     denied_count = 0
     groups = set(security_context["groups"])
     for match in matches:
+        if match.distance is not None and match.distance > MAX_VECTOR_DISTANCE:
+            continue
+
         s3_key = match.metadata.get("s3_key", match.key)
         is_allowed, policy_metadata = _authorize_asset(str(s3_key), groups)
         if is_allowed:

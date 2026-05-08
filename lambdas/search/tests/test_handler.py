@@ -142,6 +142,42 @@ def test_search_handler_filters_assets_by_policy_and_audits(monkeypatch) -> None
     assert audit_items[0]["result_count"]["N"] == "1"
 
 
+def test_search_handler_filters_weak_vector_matches(monkeypatch) -> None:
+    monkeypatch.setattr(search_handler, "embed_text", lambda _query: [0.1, 0.2, 0.3])
+    monkeypatch.setattr(search_handler, "MAX_VECTOR_DISTANCE", 0.8)
+    monkeypatch.setattr(
+        search_handler,
+        "query",
+        lambda *_args, **_kwargs: [
+            Match(
+                key="strong.jpg",
+                distance=0.42,
+                metadata={"description": "Strong match.", "s3_key": "strong.jpg"},
+            ),
+            Match(
+                key="weak.jpg",
+                distance=0.93,
+                metadata={"description": "Weak match.", "s3_key": "weak.jpg"},
+            ),
+        ],
+    )
+
+    class FakeS3Client:
+        def generate_presigned_url(self, *_args, **_kwargs) -> str:
+            return "https://signed.example/image.jpg"
+
+    monkeypatch.setattr(search_handler, "_s3_client", lambda: FakeS3Client())
+    monkeypatch.setattr(search_handler, "ASSET_POLICY_TABLE_NAME", "")
+    monkeypatch.setattr(search_handler, "AUDIT_LOG_TABLE_NAME", "")
+    monkeypatch.setattr(search_handler, "PHOTO_BUCKET_NAME", "photos")
+
+    response = search_handler.handler({"queryStringParameters": {"q": "doctor"}}, None)
+    body = loads(response["body"])
+
+    assert response["statusCode"] == 200
+    assert [result["key"] for result in body["results"]] == ["strong.jpg"]
+
+
 def test_search_handler_allows_reviewers_to_view_pending_assets(monkeypatch) -> None:
     monkeypatch.setattr(search_handler, "embed_text", lambda _query: [0.1, 0.2, 0.3])
     monkeypatch.setattr(

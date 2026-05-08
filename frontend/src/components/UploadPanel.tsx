@@ -154,12 +154,12 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
   return (
     <section className="upload-panel">
       <div className="upload-copy">
-        <p className="sidebar-label">Upload</p>
-        <h2>Add images to the library</h2>
+        <p className="sidebar-label">Media intake</p>
+        <h2>Add approved hospital assets</h2>
         <p>
-          Drag in JPEG, PNG, or WebP files. The browser uploads directly to private S3 with a
-          short-lived signed URL, skips exact duplicates by content hash, then the existing Bedrock
-          ingest pipeline indexes each new image.
+          Drag in department-approved JPEG, PNG, or WebP files. The browser uploads directly to
+          private S3 with a short-lived signed URL, skips exact duplicates by content hash, then
+          queues each new image for AI metadata extraction and policy indexing.
         </p>
       </div>
 
@@ -201,11 +201,11 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
       </div>
 
       <label className="upload-token">
-        <span>Owner upload token</span>
+        <span>Department upload token</span>
         <input
           autoComplete="off"
           onChange={(event) => setToken(event.target.value)}
-          placeholder="Paste token for this deployment"
+          placeholder="Paste authorized intake token"
           type="password"
           value={token}
         />

@@ -2,12 +2,12 @@ import type { PhotoResult, SearchFilters, SearchResponse, UploadResult } from ".
 
 const PREVIEW_RESULTS: PhotoResult[] = [
   {
-    id: "preview-boardroom",
-    key: "preview-boardroom",
+    id: "preview-leadership-briefing",
+    key: "preview-leadership-briefing",
     description:
-      "A leadership team reviews a product launch plan around a conference table with laptops, presentation notes, and clean office lighting.",
-    altText: "Corporate team reviewing a product launch plan in a conference room.",
-    seoCaption: "Executive planning session in a modern conference room.",
+      "Hospital executives review community impact materials around a conference table with secure laptops, printed reports, and clean administrative lighting.",
+    altText: "Hospital leadership team reviewing community impact materials.",
+    seoCaption: "Hospital leadership planning session for internal communications.",
     mood: "confident",
     reviewStatus: "approved",
     sceneType: "event",
@@ -22,7 +22,7 @@ const PREVIEW_RESULTS: PhotoResult[] = [
     description:
       "A doctor uses a tablet in a bright hospital hallway while medical staff coordinate patient care in the background.",
     altText: "Doctor using a tablet in a hospital hallway.",
-    seoCaption: "Healthcare operations image for internal communications.",
+    seoCaption: "Clinician using a tablet in a hospital operations corridor.",
     mood: "serene",
     reviewStatus: "approved",
     sceneType: "documentary",
@@ -32,12 +32,12 @@ const PREVIEW_RESULTS: PhotoResult[] = [
     visibility: "restricted",
   },
   {
-    id: "preview-warehouse",
-    key: "preview-warehouse",
+    id: "preview-facilities-rounds",
+    key: "preview-facilities-rounds",
     description:
-      "A warehouse operations team performs a quality inspection beside labeled inventory shelves and safety equipment.",
-    altText: "Warehouse team inspecting inventory and safety equipment.",
-    seoCaption: "Operations and compliance image from a warehouse inspection.",
+      "Facilities and safety staff inspect a clearly marked hospital corridor with equipment carts, wayfinding signage, and compliance documentation.",
+    altText: "Hospital facilities team inspecting a clinical corridor.",
+    seoCaption: "Hospital facilities inspection image for operations documentation.",
     mood: "confident",
     reviewStatus: "pending_review",
     sceneType: "documentary",
@@ -47,12 +47,12 @@ const PREVIEW_RESULTS: PhotoResult[] = [
     visibility: "restricted",
   },
   {
-    id: "preview-product-demo",
-    key: "preview-product-demo",
+    id: "preview-community-event",
+    key: "preview-community-event",
     description:
-      "A customer success manager demonstrates analytics software on a large display during an enterprise product briefing.",
-    altText: "Customer success manager presenting analytics software to clients.",
-    seoCaption: "Enterprise product demo with customer stakeholders.",
+      "Medical staff and volunteers welcome families at an outdoor community health event with branded tables, soft daylight, and approachable patient education materials.",
+    altText: "Hospital staff welcoming families at a community health event.",
+    seoCaption: "Community health outreach event for hospital marketing.",
     mood: "energetic",
     reviewStatus: "approved",
     sceneType: "event",

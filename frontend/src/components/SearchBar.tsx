@@ -47,7 +47,7 @@ export function SearchBar({
           className="search-input"
           disabled={disabled}
           onChange={(event) => onChange(event.target.value)}
-          placeholder="Try “golden hour portrait”"
+          placeholder="Try “physician speaking with family”"
           ref={searchInputRef}
           value={value}
         />

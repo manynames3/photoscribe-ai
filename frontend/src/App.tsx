@@ -9,28 +9,47 @@ import { UploadPanel } from "./components/UploadPanel";
 import type { PhotoResult, SearchFilters } from "./types";
 
 const SAMPLE_QUERIES = [
-  "executive planning session",
-  "doctor using tablet",
-  "warehouse quality inspection",
-  "product demo with customer",
+  "physician at nurses station",
+  "community health event",
+  "sterile procedure room",
+  "hospital executive headshot",
 ];
 
 const CONTROL_CARDS = [
   {
-    label: "Private storage",
-    value: "S3 + signed URLs",
+    label: "Departments",
+    value: "Comms, HR, Compliance",
   },
   {
-    label: "AI metadata",
-    value: "Claude + Titan",
+    label: "Asset governance",
+    value: "Review status + visibility",
   },
   {
-    label: "Access controls",
-    value: "Cognito-ready",
+    label: "Discovery",
+    value: "Semantic clinical-media search",
   },
   {
-    label: "Audit trail",
-    value: "DynamoDB TTL",
+    label: "Security posture",
+    value: "Private S3 + signed access",
+  },
+];
+
+const DEPARTMENT_WORKFLOWS = [
+  {
+    label: "Marketing",
+    value: "Find campaign-ready event, staff, and facility images without chasing shared folders.",
+  },
+  {
+    label: "Human Resources",
+    value: "Locate employee portraits and recruiting imagery by role, mood, date, or setting.",
+  },
+  {
+    label: "Compliance",
+    value: "Review visibility, policy status, and potentially sensitive media before release.",
+  },
+  {
+    label: "Facilities",
+    value: "Search campus, renovation, and operations documentation from one governed library.",
   },
 ];
 
@@ -41,7 +60,7 @@ export function App() {
   const [submittedQuery, setSubmittedQuery] = useState("");
   const [results, setResults] = useState<PhotoResult[]>([]);
   const [filters, setFilters] = useState<SearchFilters>({});
-  const [status, setStatus] = useState("Search the library by meaning, mood, or scene.");
+  const [status, setStatus] = useState("Search approved hospital media by department need, subject, setting, or visual tone.");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoResult | null>(null);
@@ -117,11 +136,11 @@ export function App() {
         <div className="app-ambient app-ambient-right" />
 
         <section className="hero-panel">
-          <p className="eyebrow">PhotoScribe AI</p>
-          <h1>Semantic media search for enterprise asset libraries.</h1>
+          <p className="eyebrow">CareFrame Media Intelligence</p>
+          <h1>Internal media search for hospital departments.</h1>
           <p className="hero-copy">
-            Turn internal photo libraries into searchable, AI-described assets with private object
-            storage, vector search, short-lived image access, and optional production auth controls.
+            A governed visual asset hub for Marketing, HR, Compliance, Facilities, and leadership
+            teams that need to find approved hospital imagery without digging through shared drives.
           </p>
 
           <div className="control-grid" aria-label="Production control summary">
@@ -149,6 +168,15 @@ export function App() {
             ))}
           </div>
 
+          <div className="department-grid" aria-label="Hospital department workflows">
+            {DEPARTMENT_WORKFLOWS.map((workflow) => (
+              <article className="department-card" key={workflow.label}>
+                <span>{workflow.label}</span>
+                <p>{workflow.value}</p>
+              </article>
+            ))}
+          </div>
+
           <SearchBar
             disabled={isLoading}
             onChange={setQuery}
@@ -163,7 +191,7 @@ export function App() {
         <UploadPanel
           onUploaded={(uploadedCount) => {
             setStatus(
-              `${uploadedCount} upload${uploadedCount === 1 ? "" : "s"} complete. Indexing starts automatically; search in a minute or two.`,
+              `${uploadedCount} upload${uploadedCount === 1 ? "" : "s"} accepted. Assets become searchable after AI metadata extraction and policy indexing finish.`,
             );
           }}
         />
@@ -173,7 +201,7 @@ export function App() {
             <div className="sidebar-header">
               <div>
                 <p className="sidebar-label">Refine</p>
-                <h2>Filter by metadata</h2>
+                <h2>Governance filters</h2>
               </div>
               {activeFilterCount ? <span className="filter-count">{activeFilterCount}</span> : null}
             </div>
@@ -194,11 +222,11 @@ export function App() {
                 <p className="status-copy">{status}</p>
               </div>
               <div className="mode-stack">
-                <span className="mode-pill">{import.meta.env.VITE_API_URL ? "Live AWS backend" : "Demo catalog"}</span>
+                <span className="mode-pill">{import.meta.env.VITE_API_URL ? "Hospital asset API" : "Sample catalog"}</span>
                 <span className="mode-subtle">
                   {securityContext.authMode === "jwt"
                     ? `JWT: ${securityContext.groups.join(", ") || "no groups"}`
-                    : "Public demo"}
+                    : "Unauthenticated review mode"}
                 </span>
                 {securityContext.deniedResults ? (
                   <span className="mode-subtle">{securityContext.deniedResults} policy-filtered</span>
@@ -207,6 +235,10 @@ export function App() {
             </div>
 
             {error ? <p className="error-banner">{error}</p> : null}
+            <p className="indexing-note">
+              Recent uploads appear only after image analysis writes metadata into the searchable index.
+              If newly uploaded hospital images are missing, the ingest queue or AI model access needs attention.
+            </p>
 
             <PhotoGrid
               isLoading={isLoading}

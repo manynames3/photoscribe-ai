@@ -1,12 +1,12 @@
 :root {
-  color: #241a12;
+  color: #172421;
   font-family: "Avenir Next", "Segoe UI", sans-serif;
   line-height: 1.5;
   font-weight: 400;
   background:
-    radial-gradient(circle at top left, rgba(238, 190, 123, 0.24), transparent 28%),
-    radial-gradient(circle at top right, rgba(89, 138, 127, 0.18), transparent 24%),
-    linear-gradient(180deg, #f2ece2 0%, #fcfaf6 48%, #f6f0e8 100%);
+    radial-gradient(circle at top left, rgba(47, 113, 119, 0.2), transparent 28%),
+    radial-gradient(circle at top right, rgba(176, 126, 65, 0.18), transparent 24%),
+    linear-gradient(180deg, #eef4f1 0%, #fbfaf5 48%, #edf4f2 100%);
   color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -58,7 +58,7 @@ img {
 }
 
 .app-ambient-left {
-  background: rgba(213, 126, 66, 0.18);
+  background: rgba(47, 113, 119, 0.18);
   height: 180px;
   left: 2%;
   top: 32px;
@@ -66,7 +66,7 @@ img {
 }
 
 .app-ambient-right {
-  background: rgba(81, 107, 82, 0.14);
+  background: rgba(176, 126, 65, 0.14);
   height: 240px;
   right: 4%;
   top: 140px;
@@ -78,8 +78,8 @@ img {
 .sidebar-panel,
 .results-panel {
   backdrop-filter: blur(14px);
-  background: rgba(255, 251, 244, 0.82);
-  border: 1px solid rgba(122, 95, 69, 0.12);
+  background: rgba(255, 253, 248, 0.86);
+  border: 1px solid rgba(35, 83, 82, 0.12);
   border-radius: 30px;
   box-shadow: 0 30px 80px rgba(60, 43, 27, 0.08);
   position: relative;
@@ -92,7 +92,7 @@ img {
 }
 
 .hero-panel::after {
-  background: linear-gradient(135deg, rgba(204, 147, 94, 0.12), rgba(81, 107, 82, 0));
+  background: linear-gradient(135deg, rgba(47, 113, 119, 0.12), rgba(176, 126, 65, 0.08));
   content: "";
   inset: 0;
   pointer-events: none;
@@ -127,7 +127,7 @@ img {
 }
 
 .hero-copy {
-  color: #554334;
+  color: #425450;
   font-size: 1.08rem;
   margin: 18px 0 0;
   max-width: 54rem;
@@ -144,7 +144,7 @@ img {
 }
 
 .control-card {
-  background: rgba(36, 58, 54, 0.9);
+  background: rgba(24, 58, 61, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 20px;
   color: #fff8ee;
@@ -165,6 +165,37 @@ img {
   font-size: 1.12rem;
   font-weight: 600;
   margin-top: 6px;
+}
+
+.department-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 18px;
+  position: relative;
+  z-index: 1;
+}
+
+.department-card {
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(35, 83, 82, 0.12);
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.department-card span {
+  color: #235352;
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.department-card p {
+  color: #435652;
+  font-size: 0.9rem;
+  margin: 8px 0 0;
 }
 
 .chip-row {
@@ -188,8 +219,8 @@ img {
 .filter-pill,
 .clear-filters {
   border: 1px solid rgba(122, 95, 69, 0.18);
-  background: rgba(255, 247, 235, 0.9);
-  color: #3b2b20;
+  background: rgba(255, 255, 252, 0.9);
+  color: #172421;
   transition:
     transform 160ms ease,
     background 160ms ease,
@@ -239,7 +270,7 @@ img {
 }
 
 .search-button {
-  background: linear-gradient(135deg, #2f574f, #25423d);
+  background: linear-gradient(135deg, #235352, #173a3e);
   border: 0;
   border-radius: 999px;
   color: #f9f6f0;
@@ -284,13 +315,13 @@ img {
 .upload-dropzone {
   align-items: center;
   background:
-    linear-gradient(rgba(47, 87, 79, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(47, 87, 79, 0.06) 1px, transparent 1px),
+    linear-gradient(rgba(35, 83, 82, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(35, 83, 82, 0.06) 1px, transparent 1px),
     rgba(255, 255, 255, 0.72);
   background-size: 24px 24px;
-  border: 1px dashed rgba(47, 87, 79, 0.35);
+  border: 1px dashed rgba(35, 83, 82, 0.35);
   border-radius: 22px;
-  color: #536457;
+  color: #425a55;
   display: grid;
   justify-items: center;
   min-height: 160px;
@@ -299,8 +330,8 @@ img {
 }
 
 .upload-dropzone.is-dragging {
-  background-color: rgba(47, 87, 79, 0.1);
-  border-color: #2f574f;
+  background-color: rgba(35, 83, 82, 0.1);
+  border-color: #235352;
 }
 
 .upload-input {
@@ -495,6 +526,16 @@ img {
   color: #7e2f1f;
   margin: 18px 0 0;
   padding: 14px 16px;
+}
+
+.indexing-note {
+  background: rgba(35, 83, 82, 0.07);
+  border: 1px solid rgba(35, 83, 82, 0.14);
+  border-radius: 18px;
+  color: #425450;
+  font-size: 0.92rem;
+  margin: 16px 0 0;
+  padding: 13px 15px;
 }
 
 .photo-grid {
@@ -743,7 +784,8 @@ img {
 }
 
 @media (max-width: 960px) {
-  .control-grid {
+  .control-grid,
+  .department-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -785,7 +827,8 @@ img {
     grid-template-columns: 1fr;
   }
 
-  .control-grid {
+  .control-grid,
+  .department-grid {
     grid-template-columns: 1fr;
   }
 

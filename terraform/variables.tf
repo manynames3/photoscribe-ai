@@ -119,6 +119,12 @@ variable "max_upload_bytes" {
   default     = 15728640
 }
 
+variable "max_vector_distance" {
+  description = "Maximum vector distance allowed in search results. Lower values reduce irrelevant nearest-neighbor matches."
+  type        = number
+  default     = 0.8
+}
+
 variable "ingest_event_source_max_concurrency" {
   description = "Maximum concurrent ingest Lambda invokes from the SQS event source. Keeps image indexing from starving upload/search API capacity."
   type        = number

@@ -154,6 +154,7 @@ module "search" {
   lambda_name                  = local.search_lambda_name
   lambda_source_dir            = "${path.root}/../lambdas/search"
   max_upload_bytes             = var.max_upload_bytes
+  max_vector_distance          = var.max_vector_distance
   missing_asset_policy_default = var.missing_asset_policy_default
   partition                    = data.aws_partition.current.partition
   photo_bucket_arn             = module.storage.photo_bucket_arn

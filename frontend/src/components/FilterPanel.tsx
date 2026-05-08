@@ -10,12 +10,12 @@ type FilterPanelProps = {
 const FILTER_GROUPS = [
   {
     key: "mood",
-    label: "Mood",
+    label: "Visual tone",
     options: ["confident", "serene", "energetic", "neutral", "dramatic"],
   },
   {
     key: "scene_type",
-    label: "Scene",
+    label: "Asset type",
     options: ["event", "documentary", "product", "portrait", "lifestyle"],
   },
   {

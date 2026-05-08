@@ -68,6 +68,11 @@ variable "max_upload_bytes" {
   type        = number
 }
 
+variable "max_vector_distance" {
+  description = "Maximum vector distance allowed in search results."
+  type        = number
+}
+
 variable "missing_asset_policy_default" {
   description = "Search behavior for assets without a policy row."
   type        = string
