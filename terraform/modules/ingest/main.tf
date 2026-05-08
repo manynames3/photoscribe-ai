@@ -10,20 +10,20 @@ terraform {
 }
 
 locals {
-  package_dir         = "${path.root}/.terraform-build/${var.lambda_name}"
-  package_module_name = basename(var.lambda_source_dir)
-  package_module_dir  = "${local.package_dir}/${local.package_module_name}"
-  package_zip         = "${path.root}/.terraform-build/${var.lambda_name}.zip"
-  package_recipe      = "v3"
-  source_files        = sort(fileset(var.lambda_source_dir, "*.py"))
-  source_hash         = sha256(join("", [for file in concat(local.source_files, ["requirements.txt"]) : filesha256("${var.lambda_source_dir}/${file}")]))
-  claude_is_profile   = length(regexall("^(global|us)\\.", var.claude_model_id)) > 0
-  claude_base_model   = local.claude_is_profile ? replace(var.claude_model_id, "/^(global|us)\\./", "") : var.claude_model_id
-  claude_arns = local.claude_is_profile ? [
-    "arn:${var.partition}:bedrock:${var.region}:${var.account_id}:inference-profile/${var.claude_model_id}",
-    "arn:${var.partition}:bedrock:*::foundation-model/${local.claude_base_model}",
+  package_dir            = "${path.root}/.terraform-build/${var.lambda_name}"
+  package_module_name    = basename(var.lambda_source_dir)
+  package_module_dir     = "${local.package_dir}/${local.package_module_name}"
+  package_zip            = "${path.root}/.terraform-build/${var.lambda_name}.zip"
+  package_recipe         = "v3"
+  source_files           = sort(fileset(var.lambda_source_dir, "*.py"))
+  source_hash            = sha256(join("", [for file in concat(local.source_files, ["requirements.txt"]) : filesha256("${var.lambda_source_dir}/${file}")]))
+  image_model_is_profile = length(regexall("^(global|us)\\.", var.image_model_id)) > 0
+  image_base_model       = local.image_model_is_profile ? replace(var.image_model_id, "/^(global|us)\\./", "") : var.image_model_id
+  image_model_arns = local.image_model_is_profile ? [
+    "arn:${var.partition}:bedrock:${var.region}:${var.account_id}:inference-profile/${var.image_model_id}",
+    "arn:${var.partition}:bedrock:*::foundation-model/${local.image_base_model}",
     ] : [
-    "arn:${var.partition}:bedrock:${var.region}::foundation-model/${var.claude_model_id}",
+    "arn:${var.partition}:bedrock:${var.region}::foundation-model/${var.image_model_id}",
   ]
   embed_arn = "arn:${var.partition}:bedrock:${var.region}::foundation-model/${var.embed_model_id}"
 }
@@ -88,7 +88,7 @@ data "aws_iam_policy_document" "logs" {
 
   statement {
     actions   = ["bedrock:InvokeModel"]
-    resources = concat(local.claude_arns, [local.embed_arn])
+    resources = concat(local.image_model_arns, [local.embed_arn])
   }
 
   statement {
@@ -144,9 +144,9 @@ resource "aws_lambda_function" "this" {
   environment {
     variables = {
       ASSET_POLICY_TABLE_NAME  = var.asset_policy_table_name
-      BEDROCK_CLAUDE_MODEL_ID  = var.claude_model_id
       BEDROCK_EMBED_DIMENSIONS = "1024"
       BEDROCK_EMBED_MODEL_ID   = var.embed_model_id
+      BEDROCK_IMAGE_MODEL_ID   = var.image_model_id
       DEFAULT_ALLOWED_GROUPS   = join(",", var.default_allowed_groups)
       DEFAULT_REVIEW_STATUS    = var.default_review_status
       DEFAULT_VISIBILITY       = var.default_visibility

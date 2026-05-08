@@ -15,9 +15,14 @@ from .prompts import SYSTEM_PROMPT
 from .schema import PhotoMetadata, parse_photo_metadata
 
 
-CLAUDE_MODEL_ID = os.environ.get("BEDROCK_CLAUDE_MODEL_ID", "us.anthropic.claude-sonnet-4-6")
+IMAGE_MODEL_ID = os.environ.get("BEDROCK_IMAGE_MODEL_ID", "us.amazon.nova-lite-v1:0")
 EMBED_MODEL_ID = os.environ.get("BEDROCK_EMBED_MODEL_ID", "amazon.titan-embed-text-v2:0")
 EMBED_DIMENSIONS = int(os.environ.get("BEDROCK_EMBED_DIMENSIONS", "1024"))
+MEDIA_TYPE_FORMATS = {
+    "image/jpeg": "jpeg",
+    "image/png": "png",
+    "image/webp": "webp",
+}
 
 
 def _bedrock_client() -> Any:
@@ -39,40 +44,42 @@ def _is_retryable_throttle(error: BaseException) -> bool:
     wait=wait_exponential(multiplier=0.25, min=0.25, max=2),
 )
 def describe_image(image_bytes: bytes, media_type: str) -> PhotoMetadata:
-    """Describe an image with Claude and validate the JSON response."""
+    """Describe an image with Amazon Nova and validate the JSON response."""
+    image_format = MEDIA_TYPE_FORMATS.get(media_type)
+    if image_format is None:
+        raise ValueError(f"unsupported image media type for Bedrock image analysis: {media_type}")
+
     body = json.dumps(
         {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 800,
-            "system": SYSTEM_PROMPT,
+            "schemaVersion": "messages-v1",
+            "system": [{"text": SYSTEM_PROMPT}],
             "messages": [
                 {
                     "role": "user",
                     "content": [
                         {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": media_type,
-                                "data": base64.b64encode(image_bytes).decode("utf-8"),
-                            },
+                            "image": {
+                                "format": image_format,
+                                "source": {"bytes": base64.b64encode(image_bytes).decode("utf-8")},
+                            }
                         },
-                        {"type": "text", "text": "Describe this photo per the schema."},
+                        {"text": "Describe this photo per the schema. Return only valid JSON."},
                     ],
                 }
             ],
+            "inferenceConfig": {"maxTokens": 800, "temperature": 0.1, "topP": 0.1},
         }
     )
 
     response = _bedrock_client().invoke_model(
-        modelId=CLAUDE_MODEL_ID,
+        modelId=IMAGE_MODEL_ID,
         accept="application/json",
         contentType="application/json",
         body=body,
     )
     payload = json.loads(response["body"].read())
-    content = payload.get("content", [])
-    text_parts = [part.get("text", "") for part in content if part.get("type") == "text"]
+    content = payload.get("output", {}).get("message", {}).get("content", [])
+    text_parts = [part.get("text", "") for part in content if "text" in part]
 
     return parse_photo_metadata("".join(text_parts))
 

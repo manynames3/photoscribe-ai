@@ -37,10 +37,10 @@ variable "billing_alarm_threshold" {
   default     = 5
 }
 
-variable "claude_model_id" {
-  description = "Claude multimodal model ID for image description."
+variable "image_model_id" {
+  description = "Multimodal Bedrock model ID for image metadata generation."
   type        = string
-  default     = "us.anthropic.claude-sonnet-4-6"
+  default     = "us.amazon.nova-lite-v1:0"
 }
 
 variable "embed_model_id" {

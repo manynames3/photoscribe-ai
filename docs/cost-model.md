@@ -6,7 +6,7 @@ For a portfolio dataset of roughly 1,000 images and light search traffic, the no
 
 Primary cost drivers:
 
-- Bedrock Claude image description during ingest.
+- Bedrock Nova Lite image description during ingest.
 - Bedrock Titan Text Embeddings during ingest and search.
 - S3 Vectors storage and query requests.
 - S3 photo object storage.
@@ -28,6 +28,18 @@ Cost controls in this repo:
 - Terraform provisions a development billing alarm.
 - The public demo keeps the dataset intentionally small.
 
+## Image Model Choice
+
+Image metadata generation runs once per new uploaded image, so the model decision affects ingest cost more than search cost. Search does not re-run the multimodal model; it embeds the user's query with Titan and searches stored S3 Vectors.
+
+The default image model is **Amazon Nova Lite**. It is the best fit for this project because the application needs useful descriptions, alt text, captions, and structured metadata rather than deep multi-step reasoning. Nova Lite is AWS-native, avoids the Anthropic account use-case approval blocker, and is materially cheaper than larger multimodal models.
+
+**Nova Pro** is still affordable and can be used by changing `image_model_id`, but the expected quality improvement for this use case is not large enough to justify making it the default. It is a good fallback for higher-value ingest batches if Nova Lite metadata is too shallow.
+
+**Claude** remains a premium option for high-performance or compliance-heavy review workflows where nuanced interpretation matters more than cost. It is not the default because it is substantially more expensive and can require additional Anthropic model access approval in Bedrock.
+
+At current Bedrock on-demand rates in `us-east-1`, Nova Lite is priced at `$0.06` per 1M input tokens and `$0.24` per 1M output tokens. Nova Pro is `$0.80` per 1M input tokens and `$3.20` per 1M output tokens, making Nova Lite about **13.3x cheaper** for both input and output tokens. For roughly 200 portfolio images, Nova Lite should be in the pennies range, while Nova Pro should still be around cents to about a dollar depending on image/prompt size and output length.
+
 ## Why S3 Vectors
 
 One blocker for enterprise media intelligence is vector infrastructure cost. Traditional OpenSearch or Elasticsearch-style architectures can be technically credible, but they introduce baseline compute cost before a single image is searched.
@@ -42,4 +54,4 @@ AWS's OpenSearch pricing page includes an example where OpenSearch Serverless in
 
 - [Amazon S3 pricing](https://aws.amazon.com/s3/pricing/) covers S3 storage, request pricing, and S3 Vectors pricing.
 - [Amazon OpenSearch Service pricing](https://aws.amazon.com/opensearch-service/pricing/) covers OpenSearch Serverless and OCU-based pricing examples.
-- [Amazon Bedrock pricing](https://aws.amazon.com/bedrock/pricing/) covers model-dependent inference pricing for Claude and Titan.
+- [Amazon Bedrock pricing](https://aws.amazon.com/bedrock/pricing/) covers model-dependent inference pricing for Nova, Claude, and Titan.

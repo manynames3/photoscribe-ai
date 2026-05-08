@@ -13,11 +13,6 @@ variable "asset_policy_table_name" {
   type        = string
 }
 
-variable "claude_model_id" {
-  description = "Claude multimodal model ID."
-  type        = string
-}
-
 variable "default_allowed_groups" {
   description = "Default groups allowed to access restricted assets."
   type        = list(string)
@@ -45,6 +40,11 @@ variable "event_source_max_concurrency" {
 
 variable "event_bucket_name" {
   description = "Bucket name that emits photo-created events."
+  type        = string
+}
+
+variable "image_model_id" {
+  description = "Multimodal Bedrock model ID for image metadata generation."
   type        = string
 }
 

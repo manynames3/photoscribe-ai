@@ -1,4 +1,4 @@
-"""Claude prompt definitions for image cataloging."""
+"""Image metadata prompt definitions for cataloging."""
 
 SYSTEM_PROMPT = """You are an expert photo cataloger writing structured metadata for a
 searchable photo library. You analyze photographs objectively and

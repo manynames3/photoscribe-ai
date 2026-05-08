@@ -8,7 +8,7 @@ import pytest
 from lambdas.ingest.schema import parse_photo_metadata, split_metadata
 
 
-FIXTURE_PATH = Path(__file__).parent / "fixtures" / "sample_claude_response.json"
+FIXTURE_PATH = Path(__file__).parent / "fixtures" / "sample_model_response.json"
 
 
 def test_parse_photo_metadata_validates_fixture() -> None:

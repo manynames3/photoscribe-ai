@@ -55,22 +55,22 @@ class PhotoMetadata(BaseModel):
         "backlit",
         "other",
     ]
-    time_of_day: Literal["morning", "midday", "afternoon", "sunset", "night", "unknown"]
+    time_of_day: Literal["morning", "midday", "afternoon", "evening", "sunset", "night", "unknown"]
     people_count: int = Field(..., ge=0, le=50)
     aspect_ratio: Literal["portrait", "landscape", "square", "panoramic"]
 
 
 def parse_photo_metadata(raw_text: str) -> PhotoMetadata:
-    """Parse Claude JSON and raise with the raw text preserved on failure."""
+    """Parse model JSON and raise with the raw text preserved on failure."""
     try:
         payload = json.loads(raw_text)
     except json.JSONDecodeError as error:
-        raise ValueError(f"Claude returned invalid JSON: {raw_text}") from error
+        raise ValueError(f"image model returned invalid JSON: {raw_text}") from error
 
     try:
         return PhotoMetadata.model_validate(payload)
     except ValidationError as error:
-        raise ValueError(f"Claude returned invalid schema payload: {raw_text}") from error
+        raise ValueError(f"image model returned invalid schema payload: {raw_text}") from error
 
 
 def split_metadata(metadata: PhotoMetadata, *, s3_key: str, bucket: str) -> tuple[dict[str, object], dict[str, object]]:

@@ -43,7 +43,7 @@ Traditional media libraries require someone to manually tag every image. That us
 
 PhotoScribe uses a meaning-based pipeline:
 
-1. Claude describes the photo like a human reviewer, including subject, mood, lighting, composition, and context.
+1. Nova Lite describes the photo like a human reviewer, including subject, mood, lighting, composition, and context.
 2. Titan Embeddings converts that description into a vector that represents the concept of the image, not just keywords.
 3. S3 Vectors finds images by semantic proximity, so `doctor reviewing results` can match assets described as `physician`, `clinician`, `reviewing chart`, or similar language.
 

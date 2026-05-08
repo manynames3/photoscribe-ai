@@ -8,7 +8,7 @@
 [![IaC](https://img.shields.io/badge/IaC-Terraform-844FBA?logo=terraform&logoColor=white)](#deployment)
 [![Frontend](https://img.shields.io/badge/Frontend-React%20%2B%20TypeScript-3178C6?logo=react&logoColor=white)](#tech-stack)
 
-PhotoScribe AI is a serverless AI media asset platform for searching enterprise photo libraries by meaning instead of filenames. Uploaded images are stored privately in Amazon S3, described with Amazon Bedrock Claude, embedded with Titan Text Embeddings, indexed in Amazon S3 Vectors, governed with DynamoDB asset policy/audit tables, and searched through a React + TypeScript UI deployed on Cloudflare Pages.
+PhotoScribe AI is a serverless AI media asset platform for searching enterprise photo libraries by meaning instead of filenames. Uploaded images are stored privately in Amazon S3, described with Amazon Bedrock Nova Lite, embedded with Titan Text Embeddings, indexed in Amazon S3 Vectors, governed with DynamoDB asset policy/audit tables, and searched through a React + TypeScript UI deployed on Cloudflare Pages.
 
 **Live demo:** [photoscribe-ai.pages.dev](https://photoscribe-ai.pages.dev/)
 
@@ -60,7 +60,7 @@ For the PhotoScribe demo asset workflow, the companion tool reduced multi-megaby
 | API | Amazon API Gateway HTTP API |
 | Auth | Amazon Cognito User Pools, API Gateway JWT authorizer |
 | Compute | AWS Lambda, Python 3.12 |
-| AI services | Amazon Bedrock Claude multimodal, Amazon Titan Text Embeddings v2 |
+| AI services | Amazon Bedrock Nova Lite multimodal, Amazon Titan Text Embeddings v2 |
 | Vector search | Amazon S3 Vectors |
 | Storage | Amazon S3, S3 versioning, lifecycle rules, pre-signed URLs |
 | Governance | Amazon DynamoDB asset policy table, DynamoDB audit log table with TTL |
@@ -105,7 +105,7 @@ flowchart LR
     photos --> events["S3 EventBridge notification"]
     events --> queue["SQS ingest queue<br/>concurrency cap"]
     queue --> ingest["Ingest Lambda<br/>Python 3.12"]
-    ingest --> claude["Bedrock<br/>Claude multimodal"]
+    ingest --> nova["Bedrock<br/>Nova Lite multimodal"]
     ingest --> embed
     ingest --> vectors
     ingest --> governance
@@ -252,7 +252,7 @@ Current privacy limitation: the public portfolio demo keeps `enable_api_auth = f
 
 ## Cost Model
 
-The architecture is designed for low-volume portfolio usage. The main cost driver is Bedrock image description during ingest; S3 storage, S3 Vectors storage, Lambda, DynamoDB, and API Gateway are small at demo scale. S3 Vectors avoids always-on vector database or OpenSearch cluster costs for a portfolio-sized dataset. See [docs/cost-model.md](docs/cost-model.md) for notes and assumptions.
+The architecture is designed for low-volume portfolio usage. The main cost driver is Bedrock image description during ingest, so the default model is Nova Lite. Nova Pro remains affordable if higher caption quality is needed, while Claude can be configured for premium/high-performance review workflows at higher cost. S3 storage, S3 Vectors storage, Lambda, DynamoDB, and API Gateway are small at demo scale. See [docs/cost-model.md](docs/cost-model.md) for notes and assumptions.
 
 ## Limitations
 
@@ -265,7 +265,7 @@ The architecture is designed for low-volume portfolio usage. The main cost drive
 
 ## Troubleshooting
 
-**Bedrock access errors:** confirm model access is enabled for Claude and Titan in the selected AWS region.
+**Bedrock access errors:** confirm model access is enabled for Nova Lite and Titan in the selected AWS region.
 
 **No search results:** verify the ingest Lambda ran, then check the S3 Vectors index for stored vectors.
 

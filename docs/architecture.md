@@ -31,7 +31,7 @@ flowchart TB
         vectors["S3 Vectors<br/>photos index, cosine distance"]
         policy["DynamoDB asset policy<br/>review status, visibility, allowed groups"]
         audit["DynamoDB audit log<br/>search events + TTL"]
-        bedrock["Amazon Bedrock<br/>Claude multimodal + Titan embeddings"]
+        bedrock["Amazon Bedrock<br/>Nova Lite multimodal + Titan embeddings"]
         logs["CloudWatch Logs<br/>Lambda logs and retention"]
         alarm["SNS billing alarm<br/>Development cost guardrail"]
     end
@@ -74,7 +74,7 @@ flowchart TB
 3. EventBridge sends the event to SQS.
 4. The ingest Lambda polls SQS with capped event-source concurrency.
 5. The ingest Lambda downloads the object from S3 and skips unsupported media types.
-6. Bedrock Claude returns structured photo metadata: description, alt text, caption, subjects, colors, mood, scene type, lighting, time of day, people count, and aspect ratio.
+6. Bedrock Nova Lite returns structured photo metadata: description, alt text, caption, subjects, colors, mood, scene type, lighting, time of day, people count, and aspect ratio.
 7. Bedrock Titan Text Embeddings v2 embeds the generated description into a 1024-dimensional vector.
 8. The ingest Lambda writes the vector and metadata to the S3 Vectors `photos` index.
 9. The ingest Lambda creates or updates a DynamoDB asset policy row for the S3 key, preserving existing human review decisions with `if_not_exists`.
@@ -119,7 +119,7 @@ flowchart TB
 
 ## Semantic Search Rationale
 
-Traditional media libraries depend on manual tags. That breaks down in real organizations because tags are inconsistent, incomplete, and dependent on users guessing the right keyword. PhotoScribe instead uses Bedrock Claude to generate natural-language descriptions and structured metadata, Titan Text Embeddings v2 to embed those descriptions into a shared semantic space, and S3 Vectors to retrieve assets by meaning proximity.
+Traditional media libraries depend on manual tags. That breaks down in real organizations because tags are inconsistent, incomplete, and dependent on users guessing the right keyword. PhotoScribe instead uses Bedrock Nova Lite to generate natural-language descriptions and structured metadata, Titan Text Embeddings v2 to embed those descriptions into a shared semantic space, and S3 Vectors to retrieve assets by meaning proximity.
 
 A query like `doctor reviewing results` can match images described as `physician`, `clinician`, or `reviewing chart`, even if nobody manually tagged the image with the exact search phrase.
 
@@ -131,7 +131,7 @@ A query like `doctor reviewing results` can match images described as `physician
 - New assets default to `approved` in the public demo. A private review queue should set `default_asset_review_status = "pending_review"`.
 - Existing indexed assets may not have policy rows. Keep `missing_asset_policy_default = "allow"` during migration, then change it to `deny` after backfilling policy rows.
 - S3 Vectors is provisioned with the `awscc` provider because this repo uses Cloud Control coverage for vector bucket and index resources.
-- Claude image description is the primary variable cost; repeated ingest is avoided for exact duplicates by using checksum-derived S3 object keys.
+- Image description is the primary variable cost. Nova Lite is the default cost-effective model, Nova Pro is an affordable quality upgrade, and Claude can be configured for high-performance review workflows when its higher cost is justified.
 - The current thumbnail strategy returns signed URLs for original objects. A generated thumbnail pipeline is future work.
 - Cloudflare Pages deployment uses a GitHub Actions secret. The Cloudflare API token must never be committed or exposed to the browser.
 
