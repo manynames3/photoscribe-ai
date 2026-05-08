@@ -50,8 +50,9 @@ locals {
 module "storage" {
   source = "./modules/storage"
 
-  photo_bucket_name = local.photo_bucket_name
-  tags              = local.common_tags
+  cors_allowed_origins = local.frontend_origins
+  photo_bucket_name    = local.photo_bucket_name
+  tags                 = local.common_tags
 }
 
 module "vectors" {
@@ -151,12 +152,14 @@ module "search" {
   frontend_origins             = local.frontend_origins
   lambda_name                  = local.search_lambda_name
   lambda_source_dir            = "${path.root}/../lambdas/search"
+  max_upload_bytes             = var.max_upload_bytes
   missing_asset_policy_default = var.missing_asset_policy_default
   partition                    = data.aws_partition.current.partition
   photo_bucket_arn             = module.storage.photo_bucket_arn
   photo_bucket_name            = module.storage.photo_bucket_name
   region                       = var.region
   tags                         = local.common_tags
+  upload_token_sha256          = var.upload_token_sha256
   vector_bucket_name           = module.vectors.vector_bucket_name
   vector_index_arn             = module.vectors.vector_index_arn
   vector_index_name            = local.vector_index_name

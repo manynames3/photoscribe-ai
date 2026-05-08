@@ -5,6 +5,7 @@ import { FilterPanel } from "./components/FilterPanel";
 import { PhotoGrid } from "./components/PhotoGrid";
 import { PhotoModal } from "./components/PhotoModal";
 import { SearchBar } from "./components/SearchBar";
+import { UploadPanel } from "./components/UploadPanel";
 import type { PhotoResult, SearchFilters } from "./types";
 
 const SAMPLE_QUERIES = [
@@ -158,6 +159,14 @@ export function App() {
             value={query}
           />
         </section>
+
+        <UploadPanel
+          onUploaded={(uploadedCount) => {
+            setStatus(
+              `${uploadedCount} upload${uploadedCount === 1 ? "" : "s"} complete. Indexing starts automatically; search in a minute or two.`,
+            );
+          }}
+        />
 
         <section className="content-grid">
           <aside className="sidebar-panel">

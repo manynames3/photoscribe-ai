@@ -105,3 +105,16 @@ variable "audit_log_retention_days" {
   type        = number
   default     = 30
 }
+
+variable "upload_token_sha256" {
+  description = "SHA-256 hash of the owner upload token. Leave empty to disable browser uploads."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "max_upload_bytes" {
+  description = "Maximum browser upload size in bytes."
+  type        = number
+  default     = 15728640
+}

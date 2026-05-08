@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from json import loads
+from hashlib import sha256
+from json import dumps, loads
 
 from lambdas.search import handler as search_handler
 from lambdas.search.vectors import Match
@@ -190,3 +191,81 @@ def test_search_handler_allows_reviewers_to_view_pending_assets(monkeypatch) -> 
     assert body["results"][0]["review_status"] == "pending_review"
     assert body["security_context"]["auth_mode"] == "jwt"
     assert body["security_context"]["groups"] == ["reviewer"]
+
+
+def test_upload_presign_requires_enabled_upload_token(monkeypatch) -> None:
+    monkeypatch.setattr(search_handler, "UPLOAD_TOKEN_SHA256", "")
+
+    response = search_handler.handler(
+        {
+            "routeKey": "POST /uploads/presign",
+            "body": dumps({"filename": "image.jpg", "content_type": "image/jpeg", "size_bytes": 100}),
+        },
+        None,
+    )
+
+    assert response["statusCode"] == 403
+    assert loads(response["body"]) == {"error": "browser uploads are disabled for this deployment"}
+
+
+def test_upload_presign_rejects_invalid_token(monkeypatch) -> None:
+    monkeypatch.setattr(search_handler, "UPLOAD_TOKEN_SHA256", sha256(b"correct").hexdigest())
+
+    response = search_handler.handler(
+        {
+            "routeKey": "POST /uploads/presign",
+            "headers": {"x-upload-token": "wrong"},
+            "body": dumps({"filename": "image.jpg", "content_type": "image/jpeg", "size_bytes": 100}),
+        },
+        None,
+    )
+
+    assert response["statusCode"] == 401
+    assert loads(response["body"]) == {"error": "valid upload token required"}
+
+
+def test_upload_presign_returns_signed_put_url(monkeypatch) -> None:
+    class FakeS3Client:
+        def generate_presigned_url(self, operation: str, **kwargs: object) -> str:
+            assert operation == "put_object"
+            assert kwargs["Params"]["Bucket"] == "photos"
+            assert kwargs["Params"]["ContentType"] == "image/webp"
+            assert str(kwargs["Params"]["Key"]).startswith("uploads/")
+            assert str(kwargs["Params"]["Key"]).endswith("-My-Image.webp")
+            return "https://signed.example/upload"
+
+    monkeypatch.setattr(search_handler, "_s3_client", lambda: FakeS3Client())
+    monkeypatch.setattr(search_handler, "PHOTO_BUCKET_NAME", "photos")
+    monkeypatch.setattr(search_handler, "UPLOAD_TOKEN_SHA256", sha256(b"secret").hexdigest())
+
+    response = search_handler.handler(
+        {
+            "routeKey": "POST /uploads/presign",
+            "headers": {"x-upload-token": "secret"},
+            "body": dumps({"filename": "My Image.jpeg", "content_type": "image/webp", "size_bytes": 100}),
+        },
+        None,
+    )
+    body = loads(response["body"])
+
+    assert response["statusCode"] == 200
+    assert body["content_type"] == "image/webp"
+    assert body["headers"] == {"Content-Type": "image/webp"}
+    assert body["method"] == "PUT"
+    assert body["upload_url"] == "https://signed.example/upload"
+
+
+def test_upload_presign_rejects_unsupported_content_type(monkeypatch) -> None:
+    monkeypatch.setattr(search_handler, "UPLOAD_TOKEN_SHA256", sha256(b"secret").hexdigest())
+
+    response = search_handler.handler(
+        {
+            "routeKey": "POST /uploads/presign",
+            "headers": {"x-upload-token": "secret"},
+            "body": dumps({"filename": "image.heic", "content_type": "image/heic", "size_bytes": 100}),
+        },
+        None,
+    )
+
+    assert response["statusCode"] == 400
+    assert loads(response["body"]) == {"error": "only JPEG, PNG, and WebP images are supported"}

@@ -22,6 +22,7 @@ flowchart TB
     subgraph aws["AWS us-east-1"]
         cognito["Cognito User Pool<br/>Optional JWT auth + groups"]
         api["API Gateway HTTP API<br/>GET /search"]
+        upload_api["API Gateway HTTP API<br/>POST /uploads/presign"]
         search["Search Lambda<br/>Python 3.12"]
         ingest["Ingest Lambda<br/>Python 3.12"]
         photos["S3 photo bucket<br/>Private objects, versioning, lifecycle"]
@@ -36,8 +37,11 @@ flowchart TB
 
     person --> pages
     pages --> api
+    pages --> upload_api
     cognito -. "JWT authorizer when enabled" .-> api
+    cognito -. "JWT authorizer when enabled" .-> upload_api
     api --> search
+    upload_api --> search
     search --> bedrock
     search --> vectors
     search --> policy
@@ -85,6 +89,15 @@ flowchart TB
 8. The Lambda writes a DynamoDB audit record with query, result count, denied count, principal ID, and TTL.
 9. API Gateway returns JSON results to the UI.
 
+### Browser Upload
+
+1. A user selects or drags JPEG, PNG, or WebP files into the React upload panel.
+2. The UI calls `POST /uploads/presign` with filename, content type, file size, and an owner upload token.
+3. The Lambda validates the token by hashing it and comparing it to `UPLOAD_TOKEN_SHA256`.
+4. The Lambda returns a short-lived pre-signed S3 `PUT` URL scoped to an `uploads/YYYY/MM/DD/` object key.
+5. The browser uploads the file directly to private S3 without receiving AWS credentials.
+6. S3 emits the same Object Created event used by scripted uploads, so the existing ingest pipeline indexes the image.
+
 ## Deployment Shape
 
 - The frontend is deployed to Cloudflare Pages by `.github/workflows/cloudflare-pages.yml`.
@@ -95,6 +108,7 @@ flowchart TB
 - The Terraform modules are split by responsibility: storage, vectors, ingest, search, auth, governance, frontend, and observability.
 - AWS frontend hosting still exists as an optional Terraform module, but the active public site uses Cloudflare Pages.
 - The public portfolio deployment keeps `enable_api_auth = false`; private deployments can set `enable_api_auth = true` to require Cognito JWTs on `GET /search`.
+- Browser uploads stay disabled until `upload_token_sha256` is configured. This prevents anonymous public uploads from triggering storage and Bedrock costs.
 
 ## Semantic Search Rationale
 
@@ -105,6 +119,7 @@ A query like `doctor reviewing results` can match images described as `physician
 ## Key Constraints
 
 - The public demo search API is intentionally unauthenticated for recruiter review; uploaded demo photos should be treated as public-facing once indexed because search results return signed image URLs.
+- Browser uploads are owner-gated with a shared upload token hash for the portfolio deployment. A production deployment should replace this with full Cognito login, role checks, moderation, and review workflows.
 - Cognito/JWT auth is optional and controlled by Terraform. Enabling it requires a frontend login/token flow; the current UI can attach a token from `localStorage["photoscribe.authToken"]`.
 - New assets default to `approved` in the public demo. A private review queue should set `default_asset_review_status = "pending_review"`.
 - Existing indexed assets may not have policy rows. Keep `missing_asset_policy_default = "allow"` during migration, then change it to `deny` after backfilling policy rows.

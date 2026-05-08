@@ -38,6 +38,18 @@ resource "aws_s3_bucket_versioning" "photo" {
   }
 }
 
+resource "aws_s3_bucket_cors_configuration" "photo" {
+  bucket = aws_s3_bucket.photo.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "HEAD", "PUT"]
+    allowed_origins = var.cors_allowed_origins
+    expose_headers  = ["ETag"]
+    max_age_seconds = 300
+  }
+}
+
 resource "aws_s3_bucket_lifecycle_configuration" "photo" {
   bucket = aws_s3_bucket.photo.id
 

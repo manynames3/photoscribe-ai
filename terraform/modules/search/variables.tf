@@ -63,6 +63,11 @@ variable "lambda_source_dir" {
   type        = string
 }
 
+variable "max_upload_bytes" {
+  description = "Maximum browser upload size in bytes."
+  type        = number
+}
+
 variable "missing_asset_policy_default" {
   description = "Search behavior for assets without a policy row."
   type        = string
@@ -91,6 +96,12 @@ variable "region" {
 variable "tags" {
   description = "Tags applied to search resources."
   type        = map(string)
+}
+
+variable "upload_token_sha256" {
+  description = "SHA-256 hash of the owner upload token. Empty disables browser uploads."
+  type        = string
+  sensitive   = true
 }
 
 variable "vector_bucket_name" {

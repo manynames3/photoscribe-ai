@@ -52,12 +52,13 @@ A marketing coordinator can search for `warm outdoor photo with staff in navy un
 ## Example Workflow
 
 1. A department uploads approved or review-pending images to the private S3 photo bucket.
-2. The ingest Lambda generates AI descriptions and structured metadata with Amazon Bedrock.
-3. Titan Embeddings converts the generated description into a search vector.
-4. S3 Vectors stores the vector and metadata for pay-per-use semantic search.
-5. DynamoDB stores review status, visibility, and audit metadata.
-6. The React UI lets users search in plain language and filter by metadata.
-7. The search Lambda checks asset policy before issuing a short-lived signed S3 URL.
+2. Uploads can come from the browser upload panel, CLI bulk upload, or another S3-backed source.
+3. The ingest Lambda generates AI descriptions and structured metadata with Amazon Bedrock.
+4. Titan Embeddings converts the generated description into a search vector.
+5. S3 Vectors stores the vector and metadata for pay-per-use semantic search.
+6. DynamoDB stores review status, visibility, and audit metadata.
+7. The React UI lets users search in plain language and filter by metadata.
+8. The search Lambda checks asset policy before issuing a short-lived signed S3 URL.
 
 ## Recruiter-Relevant Takeaway
 

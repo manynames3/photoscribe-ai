@@ -25,7 +25,7 @@ What I built:
 - an AWS ingest pipeline that reacts to S3 uploads and creates AI-generated photo metadata
 - a vector search backend using Bedrock embeddings and S3 Vectors
 - an HTTP search API backed by AWS Lambda and API Gateway
-- a responsive React interface with metadata filters and signed image previews
+- a responsive React interface with metadata filters, browser uploads, and signed image previews
 - optional Cognito JWT authentication for private-library deployments
 - DynamoDB asset policy and audit tables for review status, object-level visibility, and search audit records
 - Terraform modules for storage, vectors, Lambdas, API Gateway, auth, governance, observability, and optional AWS frontend hosting
@@ -75,6 +75,7 @@ For the PhotoScribe demo asset workflow, the companion tool reduced multi-megaby
 - **Least-privilege IAM:** Each Lambda has its own IAM role scoped to the Bedrock, S3, S3 Vectors, and CloudWatch resources it needs.
 - **Private-library controls:** Terraform can enable Cognito JWT auth on `GET /search`; Lambda enforces DynamoDB asset policies before issuing signed image URLs.
 - **Audit and review workflow:** Ingest creates asset policy rows with review status and visibility; search writes audit events with result counts and policy-filtered counts.
+- **Safe browser uploads:** The UI requests owner-gated pre-signed S3 PUT URLs, uploads directly to the private bucket, and lets the existing ingest pipeline index the new assets.
 - **Cost-aware architecture:** S3 Vectors avoids always-on vector infrastructure for a low-volume portfolio workload.
 - **Infrastructure as code:** Terraform defines AWS storage, vector, compute, API, observability, and optional frontend hosting resources.
 - **CI/CD-ready frontend:** Every push can build and deploy the Vite frontend to Cloudflare Pages using a GitHub Actions secret for Cloudflare deploy access.
@@ -96,6 +97,8 @@ flowchart LR
     search --> vectors["S3 Vectors<br/>photos index"]
     search --> photos["S3 Photo Bucket<br/>pre-signed URLs"]
     search --> governance["DynamoDB<br/>asset policy + audit"]
+    ui --> upload["POST /uploads/presign<br/>owner upload token"]
+    upload --> photos
 
     uploader["Photo upload"] --> photos
     photos --> events["S3 EventBridge notification"]
@@ -187,6 +190,25 @@ Useful Terraform outputs:
 - `audit_log_table_name`
 - `cognito_user_pool_id` when `enable_api_auth = true`
 
+Enable browser uploads:
+
+```bash
+UPLOAD_TOKEN="choose-a-long-random-owner-token"
+UPLOAD_TOKEN_SHA256="$(printf '%s' "$UPLOAD_TOKEN" | shasum -a 256 | awk '{print $1}')"
+
+terraform plan \
+  -var-file=envs/dev.tfvars \
+  -var-file=envs/dev.cloudflare.tfvars \
+  -var="upload_token_sha256=$UPLOAD_TOKEN_SHA256"
+
+terraform apply \
+  -var-file=envs/dev.tfvars \
+  -var-file=envs/dev.cloudflare.tfvars \
+  -var="upload_token_sha256=$UPLOAD_TOKEN_SHA256"
+```
+
+After deploy, paste the raw `UPLOAD_TOKEN` into the frontend upload form. Only the token hash should be stored in Terraform variables; the raw token should not be committed.
+
 To seed photos after deploy:
 
 ```bash
@@ -218,12 +240,13 @@ Manual smoke test:
 - Lambda IAM policies are scoped to the resources used by each function.
 - Optional Cognito JWT auth can be enabled with `enable_api_auth = true`.
 - Search Lambda checks DynamoDB asset policy rows before returning signed URLs.
+- Browser uploads require an owner upload token and return pre-signed S3 PUT URLs instead of exposing AWS credentials.
 - Search audit records are written to DynamoDB with TTL-based retention.
 - GitHub Actions uses secrets for deployment credentials.
 - CloudWatch log groups use retention policies.
 - A development billing alarm is provisioned through Terraform.
 
-Current privacy limitation: the public portfolio demo keeps `enable_api_auth = false`, so demo photos should be treated as public-facing content once indexed. A private deployment should enable Cognito auth, set `default_asset_review_status = "pending_review"` if human approval is required, and set `missing_asset_policy_default = "deny"` after existing assets have policy rows.
+Current privacy limitation: the public portfolio demo keeps `enable_api_auth = false`, so demo photos should be treated as public-facing content once indexed. Browser uploads are disabled unless `upload_token_sha256` is configured. A private deployment should enable Cognito auth, set `default_asset_review_status = "pending_review"` if human approval is required, and set `missing_asset_policy_default = "deny"` after existing assets have policy rows.
 
 ## Cost Model
 

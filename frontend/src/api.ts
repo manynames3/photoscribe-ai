@@ -1,4 +1,4 @@
-import type { PhotoResult, SearchFilters, SearchResponse } from "./types";
+import type { PhotoResult, SearchFilters, SearchResponse, UploadResult } from "./types";
 
 const PREVIEW_RESULTS: PhotoResult[] = [
   {
@@ -89,6 +89,15 @@ type ApiSearchResponse = Partial<SearchResponse> & {
   }>;
 };
 
+type UploadPresignResponse = {
+  bucket: string;
+  content_type: string;
+  headers: Record<string, string>;
+  key: string;
+  method: "PUT";
+  upload_url: string;
+};
+
 function matchesPreviewQuery(result: PhotoResult, query: string) {
   const haystack = [
     result.description,
@@ -158,9 +167,18 @@ function serializeFilters(filters: SearchFilters) {
   return populatedEntries.length ? JSON.stringify(Object.fromEntries(populatedEntries)) : undefined;
 }
 
+function apiBaseUrl() {
+  return import.meta.env.VITE_API_URL?.trim().replace(/\/$/, "") ?? "";
+}
+
+function authHeaders(): Record<string, string> {
+  const authToken = window.localStorage.getItem("photoscribe.authToken")?.trim();
+  return authToken ? { Authorization: `Bearer ${authToken}` } : {};
+}
+
 export async function searchPhotos(query: string, filters: SearchFilters): Promise<SearchResponse> {
   const trimmedQuery = query.trim();
-  const baseUrl = import.meta.env.VITE_API_URL?.trim();
+  const baseUrl = apiBaseUrl();
 
   if (!baseUrl) {
     const matchingPreviewResults = PREVIEW_RESULTS.filter((result) => matchesPreviewQuery(result, trimmedQuery));
@@ -186,9 +204,8 @@ export async function searchPhotos(query: string, filters: SearchFilters): Promi
     url.searchParams.set("filter", serializedFilters);
   }
 
-  const authToken = window.localStorage.getItem("photoscribe.authToken")?.trim();
   const response = await fetch(url.toString(), {
-    headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
+    headers: authHeaders(),
   });
 
   if (!response.ok) {
@@ -209,5 +226,99 @@ export async function searchPhotos(query: string, filters: SearchFilters): Promi
           groups: payload.security_context.groups ?? [],
         }
       : undefined,
+  };
+}
+
+function inferContentType(file: File) {
+  if (file.type) {
+    return file.type;
+  }
+
+  const lowerName = file.name.toLowerCase();
+  if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) {
+    return "image/jpeg";
+  }
+  if (lowerName.endsWith(".png")) {
+    return "image/png";
+  }
+  if (lowerName.endsWith(".webp")) {
+    return "image/webp";
+  }
+
+  return "application/octet-stream";
+}
+
+function putFileWithProgress(
+  file: File,
+  presign: UploadPresignResponse,
+  onProgress: (progress: number) => void,
+) {
+  return new Promise<void>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("PUT", presign.upload_url);
+
+    Object.entries(presign.headers).forEach(([key, value]) => {
+      request.setRequestHeader(key, value);
+    });
+
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    };
+
+    request.onload = () => {
+      if (request.status >= 200 && request.status < 300) {
+        onProgress(100);
+        resolve();
+        return;
+      }
+      reject(new Error(`S3 upload failed with status ${request.status}.`));
+    };
+
+    request.onerror = () => reject(new Error("S3 upload failed."));
+    request.send(file);
+  });
+}
+
+export async function uploadPhoto(
+  file: File,
+  uploadToken: string,
+  onProgress: (progress: number) => void,
+): Promise<UploadResult> {
+  const baseUrl = apiBaseUrl();
+  if (!baseUrl) {
+    throw new Error("Upload requires VITE_API_URL to point at the deployed API.");
+  }
+
+  const contentType = inferContentType(file);
+  const response = await fetch(`${baseUrl}/uploads/presign`, {
+    body: JSON.stringify({
+      content_type: contentType,
+      filename: file.name,
+      size_bytes: file.size,
+    }),
+    headers: {
+      "Content-Type": "application/json",
+      "x-upload-token": uploadToken,
+      ...authHeaders(),
+    },
+    method: "POST",
+  });
+
+  const payload = (await response.json()) as Partial<UploadPresignResponse> & { error?: string };
+  if (!response.ok) {
+    throw new Error(payload.error ?? `Upload request failed with status ${response.status}.`);
+  }
+
+  if (!payload.upload_url || !payload.key || !payload.bucket || !payload.headers) {
+    throw new Error("Upload API returned an invalid presigned URL response.");
+  }
+
+  await putFileWithProgress(file, payload as UploadPresignResponse, onProgress);
+
+  return {
+    bucket: payload.bucket,
+    key: payload.key,
   };
 }

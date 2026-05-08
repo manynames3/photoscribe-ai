@@ -5,6 +5,10 @@ from __future__ import annotations
 import json
 import logging
 import os
+import base64
+import hashlib
+import hmac
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import unquote
@@ -24,8 +28,17 @@ AUDIT_LOG_RETENTION_DAYS = int(os.environ.get("AUDIT_LOG_RETENTION_DAYS", "30"))
 MISSING_POLICY_DEFAULT = os.environ.get("MISSING_POLICY_DEFAULT", "allow").strip().lower()
 PHOTO_BUCKET_NAME = os.environ.get("PHOTO_BUCKET_NAME", "")
 SIGNED_URL_TTL_SECONDS = int(os.environ.get("SIGNED_URL_TTL_SECONDS", "900"))
+UPLOAD_TOKEN_SHA256 = os.environ.get("UPLOAD_TOKEN_SHA256", "").strip().lower()
+UPLOAD_URL_TTL_SECONDS = int(os.environ.get("UPLOAD_URL_TTL_SECONDS", "900"))
+MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_BYTES", str(15 * 1024 * 1024)))
 FILTER_KEYS = {"mood", "scene_type", "lighting", "time_of_day", "people_count", "date_added", "aspect_ratio"}
 PRIVILEGED_GROUPS = {"admin", "reviewer"}
+ALLOWED_UPLOAD_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+}
+SAFE_FILENAME_PATTERN = re.compile(r"[^A-Za-z0-9._-]+")
 
 
 def _s3_client() -> Any:
@@ -42,6 +55,33 @@ def _response(status_code: int, payload: dict[str, Any]) -> dict[str, Any]:
         "headers": {"Content-Type": "application/json"},
         "body": json.dumps(payload),
     }
+
+
+def _event_headers(event: dict[str, Any]) -> dict[str, str]:
+    return {str(key).lower(): str(value) for key, value in (event.get("headers") or {}).items()}
+
+
+def _json_body(event: dict[str, Any]) -> dict[str, Any]:
+    raw_body = event.get("body") or "{}"
+    if event.get("isBase64Encoded"):
+        raw_body = base64.b64decode(raw_body).decode("utf-8")
+
+    try:
+        payload = json.loads(raw_body)
+    except json.JSONDecodeError as error:
+        raise ValueError("request body must be valid JSON") from error
+
+    if not isinstance(payload, dict):
+        raise ValueError("request body must be a JSON object")
+
+    return payload
+
+
+def _is_upload_request(event: dict[str, Any]) -> bool:
+    route_key = event.get("routeKey")
+    method = event.get("requestContext", {}).get("http", {}).get("method")
+    raw_path = event.get("rawPath", "")
+    return route_key == "POST /uploads/presign" or (method == "POST" and raw_path.endswith("/uploads/presign"))
 
 
 def parse_filter(raw_filter: str | None) -> dict[str, Any] | None:
@@ -64,6 +104,79 @@ def parse_filter(raw_filter: str | None) -> dict[str, Any] | None:
         translated[key] = value
 
     return translated
+
+
+def _has_valid_upload_token(event: dict[str, Any]) -> bool:
+    if not UPLOAD_TOKEN_SHA256:
+        return False
+
+    supplied_token = _event_headers(event).get("x-upload-token", "")
+    supplied_hash = hashlib.sha256(supplied_token.encode("utf-8")).hexdigest()
+    return hmac.compare_digest(supplied_hash, UPLOAD_TOKEN_SHA256)
+
+
+def _safe_upload_filename(filename: str, content_type: str) -> str:
+    raw_name = filename.replace("\\", "/").split("/")[-1].strip()
+    if not raw_name:
+        raise ValueError("filename required")
+
+    base_name, _extension = os.path.splitext(raw_name)
+    extension = ALLOWED_UPLOAD_TYPES[content_type]
+
+    safe_base = SAFE_FILENAME_PATTERN.sub("-", base_name).strip(".-_")[:80]
+    return f"{safe_base or 'upload'}{extension}"
+
+
+def _handle_upload_presign(event: dict[str, Any]) -> dict[str, Any]:
+    if not UPLOAD_TOKEN_SHA256:
+        return _response(403, {"error": "browser uploads are disabled for this deployment"})
+
+    if not _has_valid_upload_token(event):
+        return _response(401, {"error": "valid upload token required"})
+
+    try:
+        payload = _json_body(event)
+        filename = str(payload.get("filename", "")).strip()
+        content_type = str(payload.get("content_type", "")).split(";")[0].strip().lower()
+        size_bytes = int(payload.get("size_bytes", 0))
+    except (TypeError, ValueError) as error:
+        return _response(400, {"error": str(error)})
+
+    if content_type not in ALLOWED_UPLOAD_TYPES:
+        return _response(400, {"error": "only JPEG, PNG, and WebP images are supported"})
+
+    if size_bytes <= 0 or size_bytes > MAX_UPLOAD_BYTES:
+        return _response(400, {"error": f"file must be between 1 byte and {MAX_UPLOAD_BYTES} bytes"})
+
+    try:
+        safe_filename = _safe_upload_filename(filename, content_type)
+    except ValueError as error:
+        return _response(400, {"error": str(error)})
+
+    date_prefix = datetime.now(UTC).strftime("%Y/%m/%d")
+    key = f"uploads/{date_prefix}/{uuid4()}-{safe_filename}"
+    upload_url = _s3_client().generate_presigned_url(
+        "put_object",
+        Params={
+            "Bucket": PHOTO_BUCKET_NAME,
+            "ContentType": content_type,
+            "Key": key,
+        },
+        ExpiresIn=UPLOAD_URL_TTL_SECONDS,
+    )
+
+    return _response(
+        200,
+        {
+            "bucket": PHOTO_BUCKET_NAME,
+            "content_type": content_type,
+            "expires_in": UPLOAD_URL_TTL_SECONDS,
+            "headers": {"Content-Type": content_type},
+            "key": key,
+            "method": "PUT",
+            "upload_url": upload_url,
+        },
+    )
 
 
 def _extract_claims(event: dict[str, Any]) -> dict[str, Any]:
@@ -216,7 +329,10 @@ def _audit_search(
 
 
 def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
-    """Handle semantic search requests."""
+    """Handle semantic search and upload presign requests."""
+    if _is_upload_request(event):
+        return _handle_upload_presign(event)
+
     params = event.get("queryStringParameters") or {}
     query_text = (params.get("q") or "").strip()
     if not query_text:

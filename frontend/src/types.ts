@@ -35,3 +35,17 @@ export type SearchResponse = {
     groups: string[];
   };
 };
+
+export type UploadQueueItem = {
+  error?: string;
+  file: File;
+  id: string;
+  key?: string;
+  progress: number;
+  status: "ready" | "uploading" | "done" | "error";
+};
+
+export type UploadResult = {
+  bucket: string;
+  key: string;
+};

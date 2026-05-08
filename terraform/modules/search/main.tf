@@ -87,6 +87,11 @@ data "aws_iam_policy_document" "logs" {
   }
 
   statement {
+    actions   = ["s3:PutObject"]
+    resources = ["${var.photo_bucket_arn}/uploads/*"]
+  }
+
+  statement {
     actions   = ["dynamodb:GetItem"]
     resources = [var.asset_policy_table_arn]
   }
@@ -127,9 +132,12 @@ resource "aws_lambda_function" "this" {
       ASSET_POLICY_TABLE_NAME  = var.asset_policy_table_name
       AUDIT_LOG_RETENTION_DAYS = tostring(var.audit_log_retention_days)
       AUDIT_LOG_TABLE_NAME     = var.audit_log_table_name
+      MAX_UPLOAD_BYTES         = tostring(var.max_upload_bytes)
       MISSING_POLICY_DEFAULT   = var.missing_asset_policy_default
       PHOTO_BUCKET_NAME        = var.photo_bucket_name
       SIGNED_URL_TTL_SECONDS   = "900"
+      UPLOAD_TOKEN_SHA256      = var.upload_token_sha256
+      UPLOAD_URL_TTL_SECONDS   = "900"
       VECTOR_BUCKET_NAME       = var.vector_bucket_name
       VECTOR_INDEX_NAME        = var.vector_index_name
     }
@@ -145,7 +153,7 @@ resource "aws_apigatewayv2_api" "http" {
 
   cors_configuration {
     allow_headers = ["*"]
-    allow_methods = ["GET", "OPTIONS"]
+    allow_methods = ["GET", "OPTIONS", "POST"]
     allow_origins = var.frontend_origins
     max_age       = 300
   }
@@ -178,6 +186,14 @@ resource "aws_apigatewayv2_route" "search" {
   authorization_type = var.enable_api_auth ? "JWT" : "NONE"
   authorizer_id      = var.enable_api_auth ? aws_apigatewayv2_authorizer.cognito[0].id : null
   route_key          = "GET /search"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "upload_presign" {
+  api_id             = aws_apigatewayv2_api.http.id
+  authorization_type = var.enable_api_auth ? "JWT" : "NONE"
+  authorizer_id      = var.enable_api_auth ? aws_apigatewayv2_authorizer.cognito[0].id : null
+  route_key          = "POST /uploads/presign"
   target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 

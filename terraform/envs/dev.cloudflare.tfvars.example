@@ -12,3 +12,8 @@ enable_api_auth = false
 # For a production review queue, set this to "pending_review" and approve assets
 # by updating their DynamoDB asset policy row.
 default_asset_review_status = "approved"
+
+# Optional owner-only browser uploads. Generate a token locally, store only the
+# SHA-256 hash here, and paste the raw token into the frontend upload form.
+# Example: printf '%s' 'choose-a-long-random-token' | shasum -a 256
+upload_token_sha256 = ""
