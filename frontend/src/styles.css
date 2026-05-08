@@ -790,6 +790,58 @@ img {
   margin: 0;
 }
 
+.curator-panel {
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(122, 95, 69, 0.14);
+  border-radius: 22px;
+  display: grid;
+  gap: 13px;
+  margin-top: 24px;
+  padding: 18px;
+}
+
+.curator-panel h4 {
+  color: #241a12;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.curator-panel p {
+  color: #655241;
+  font-size: 0.92rem;
+  margin: 8px 0 0;
+}
+
+.curator-panel label {
+  display: grid;
+  gap: 7px;
+}
+
+.curator-panel label span {
+  color: #7a5f45;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.curator-panel input {
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(122, 95, 69, 0.16);
+  border-radius: 14px;
+  color: #241a12;
+  min-width: 0;
+  padding: 12px 13px;
+}
+
+.curator-status {
+  color: #425450;
+  font-size: 0.88rem;
+  margin: 0;
+}
+
 .site-footer {
   color: #7a6654;
   font-size: 0.84rem;

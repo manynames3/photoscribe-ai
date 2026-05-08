@@ -200,8 +200,8 @@ export function App() {
           <aside className="sidebar-panel">
             <div className="sidebar-header">
               <div>
-                <p className="sidebar-label">Refine</p>
-                <h2>Governance filters</h2>
+                <p className="sidebar-label">Find</p>
+                <h2>Asset finder</h2>
               </div>
               {activeFilterCount ? <span className="filter-count">{activeFilterCount}</span> : null}
             </div>

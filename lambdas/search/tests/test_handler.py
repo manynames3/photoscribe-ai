@@ -82,8 +82,10 @@ def test_search_handler_returns_enriched_results(monkeypatch) -> None:
                 "objects_detected": ["lab coat", "stethoscope"],
                 "thumbnail_url": "https://signed.example/image.jpg",
                 "image_url": "https://signed.example/image.jpg",
+                "curator_tags": [],
                 "review_status": "unmanaged",
                 "s3_key": "image.jpg",
+                "staff_names": [],
                 "visibility": "library",
             }
         ],
@@ -134,6 +136,9 @@ def test_search_handler_filters_assets_by_policy_and_audits(monkeypatch) -> None
                 },
             }
             return {"Item": policies[key]}
+
+        def scan(self, **_kwargs) -> dict[str, object]:
+            return {"Items": []}
 
         def put_item(self, *, Item: dict[str, object], **_kwargs) -> None:
             audit_items.append(Item)
@@ -209,6 +214,9 @@ def test_search_handler_allows_reviewers_to_view_pending_assets(monkeypatch) -> 
             return "https://signed.example/pending.jpg"
 
     class FakeDynamoDBClient:
+        def scan(self, **_kwargs) -> dict[str, object]:
+            return {"Items": []}
+
         def get_item(self, **_kwargs) -> dict[str, object]:
             return {
                 "Item": {
@@ -245,6 +253,111 @@ def test_search_handler_allows_reviewers_to_view_pending_assets(monkeypatch) -> 
     assert body["results"][0]["review_status"] == "pending_review"
     assert body["security_context"]["auth_mode"] == "jwt"
     assert body["security_context"]["groups"] == ["reviewer"]
+
+
+def test_search_handler_returns_curated_tag_matches(monkeypatch) -> None:
+    monkeypatch.setattr(search_handler, "embed_text", lambda _query: [0.1, 0.2, 0.3])
+    monkeypatch.setattr(search_handler, "query", lambda *_args, **_kwargs: [])
+
+    class FakeS3Client:
+        def generate_presigned_url(self, *_args, **_kwargs) -> str:
+            return "https://signed.example/headshot.jpg"
+
+    class FakeDynamoDBClient:
+        def scan(self, **_kwargs) -> dict[str, object]:
+            return {
+                "Items": [
+                    {
+                        "asset_key": {"S": "headshot.jpg"},
+                        "ai_description": {"S": "Professional headshot for hospital leadership."},
+                        "curator_tags": {"S": "annual report,leadership"},
+                        "curator_tags_lc": {"S": "annual report,leadership"},
+                        "mood": {"S": "confident"},
+                        "people_count": {"N": "1"},
+                        "review_status": {"S": "approved"},
+                        "scene_type": {"S": "portrait"},
+                        "staff_names": {"S": "Dr. Maya Chen"},
+                        "staff_names_lc": {"S": "dr. maya chen"},
+                        "visibility": {"S": "library"},
+                    }
+                ]
+            }
+
+        def get_item(self, **_kwargs) -> dict[str, object]:
+            return self.scan()["Items"][0] and {"Item": self.scan()["Items"][0]}
+
+    monkeypatch.setattr(search_handler, "_s3_client", lambda: FakeS3Client())
+    monkeypatch.setattr(search_handler, "_dynamodb_client", lambda: FakeDynamoDBClient())
+    monkeypatch.setattr(search_handler, "ASSET_POLICY_TABLE_NAME", "asset-policy")
+    monkeypatch.setattr(search_handler, "AUDIT_LOG_TABLE_NAME", "")
+    monkeypatch.setattr(search_handler, "PHOTO_BUCKET_NAME", "photos")
+
+    response = search_handler.handler({"queryStringParameters": {"q": "maya chen"}}, None)
+    body = loads(response["body"])
+
+    assert response["statusCode"] == 200
+    assert body["results"][0]["key"] == "headshot.jpg"
+    assert body["results"][0]["staff_names"] == ["Dr. Maya Chen"]
+    assert body["results"][0]["people_count"] == 1
+    assert body["results"][0]["curator_tags"] == ["annual report", "leadership"]
+    assert body["results"][0]["match_type"] == "curator_tag"
+
+
+def test_asset_tags_requires_curator_access(monkeypatch) -> None:
+    monkeypatch.setattr(search_handler, "ASSET_POLICY_TABLE_NAME", "asset-policy")
+    monkeypatch.setattr(search_handler, "UPLOAD_TOKEN_SHA256", sha256(b"secret").hexdigest())
+
+    response = search_handler.handler(
+        {
+            "routeKey": "POST /assets/tags",
+            "headers": {"x-upload-token": "wrong"},
+            "body": dumps({"key": "headshot.jpg", "staff_names": ["Dr. Maya Chen"], "curator_tags": ["leadership"]}),
+        },
+        None,
+    )
+
+    assert response["statusCode"] == 403
+    assert loads(response["body"]) == {"error": "admin, reviewer, or owner token required"}
+
+
+def test_asset_tags_accepts_owner_token_and_updates_policy(monkeypatch) -> None:
+    updated_items: list[dict[str, object]] = []
+    audit_items: list[dict[str, object]] = []
+
+    class FakeDynamoDBClient:
+        def update_item(self, **kwargs: object) -> None:
+            updated_items.append(kwargs)
+
+        def put_item(self, *, Item: dict[str, object], **_kwargs) -> None:
+            audit_items.append(Item)
+
+    monkeypatch.setattr(search_handler, "_dynamodb_client", lambda: FakeDynamoDBClient())
+    monkeypatch.setattr(search_handler, "ASSET_POLICY_TABLE_NAME", "asset-policy")
+    monkeypatch.setattr(search_handler, "AUDIT_LOG_TABLE_NAME", "audit-log")
+    monkeypatch.setattr(search_handler, "UPLOAD_TOKEN_SHA256", sha256(b"secret").hexdigest())
+
+    response = search_handler.handler(
+        {
+            "routeKey": "POST /assets/tags",
+            "headers": {"x-upload-token": "secret"},
+            "body": dumps(
+                {
+                    "curator_tags": ["Annual Report", "Leadership"],
+                    "key": "uploads/sha256/aa/headshot.webp",
+                    "staff_names": ["Dr. Maya Chen", "Dr. Maya Chen"],
+                }
+            ),
+        },
+        None,
+    )
+    body = loads(response["body"])
+
+    assert response["statusCode"] == 200
+    assert body["curator_tags"] == ["Annual Report", "Leadership"]
+    assert body["staff_names"] == ["Dr. Maya Chen"]
+    assert updated_items[0]["Key"] == {"asset_key": {"S": "uploads/sha256/aa/headshot.webp"}}
+    assert updated_items[0]["ExpressionAttributeValues"][":staff_names_lc"] == {"S": "dr. maya chen"}
+    assert audit_items[0]["event_type"] == {"S": "asset_tags_updated"}
 
 
 def test_upload_presign_requires_enabled_upload_token(monkeypatch) -> None:

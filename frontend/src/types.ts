@@ -8,6 +8,7 @@ export type SearchFilters = Partial<{
 export type PhotoResult = {
   altText: string;
   aspectRatio?: string;
+  curatorTags?: string[];
   dominantColors?: string[];
   description: string;
   distance?: number;
@@ -23,6 +24,7 @@ export type PhotoResult = {
   s3Key?: string;
   seoCaption: string;
   source: "preview" | "api";
+  staffNames?: string[];
   subjects?: string[];
   thumbnailUrl?: string;
   timeOfDay: string;
@@ -55,4 +57,10 @@ export type UploadResult = {
   bucket: string;
   duplicate?: boolean;
   key: string;
+};
+
+export type AssetTagsUpdate = {
+  curatorTags: string[];
+  key: string;
+  staffNames: string[];
 };

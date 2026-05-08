@@ -103,7 +103,11 @@ data "aws_iam_policy_document" "logs" {
   }
 
   statement {
-    actions   = ["dynamodb:GetItem"]
+    actions = [
+      "dynamodb:GetItem",
+      "dynamodb:Scan",
+      "dynamodb:UpdateItem",
+    ]
     resources = [var.asset_policy_table_arn]
   }
 
@@ -206,6 +210,14 @@ resource "aws_apigatewayv2_route" "upload_presign" {
   authorization_type = var.enable_api_auth ? "JWT" : "NONE"
   authorizer_id      = var.enable_api_auth ? aws_apigatewayv2_authorizer.cognito[0].id : null
   route_key          = "POST /uploads/presign"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "asset_tags" {
+  api_id             = aws_apigatewayv2_api.http.id
+  authorization_type = var.enable_api_auth ? "JWT" : "NONE"
+  authorizer_id      = var.enable_api_auth ? aws_apigatewayv2_authorizer.cognito[0].id : null
+  route_key          = "POST /assets/tags"
   target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 

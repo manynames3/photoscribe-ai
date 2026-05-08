@@ -131,3 +131,4 @@ def test_upsert_asset_policy_preserves_review_decisions(monkeypatch) -> None:
     assert "if_not_exists(review_status" in str(captured["UpdateExpression"])
     assert "if_not_exists(visibility" in str(captured["UpdateExpression"])
     assert captured["ExpressionAttributeValues"][":allowed_groups"]["S"] == "admin,reviewer,employee"
+    assert captured["ExpressionAttributeValues"][":people_count"]["N"] == "2"

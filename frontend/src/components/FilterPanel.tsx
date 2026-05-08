@@ -10,23 +10,18 @@ type FilterPanelProps = {
 const FILTER_GROUPS = [
   {
     key: "mood",
-    label: "Visual tone",
+    label: "Tone",
     options: ["confident", "serene", "energetic", "neutral", "dramatic"],
   },
   {
     key: "scene_type",
-    label: "Asset type",
-    options: ["event", "documentary", "product", "portrait", "lifestyle"],
+    label: "Department use",
+    options: ["portrait", "event", "documentary", "architectural", "interior"],
   },
   {
     key: "lighting",
-    label: "Lighting",
+    label: "Image condition",
     options: ["studio", "soft_diffused", "mixed", "low_light"],
-  },
-  {
-    key: "time_of_day",
-    label: "Time",
-    options: ["morning", "midday", "afternoon", "unknown"],
   },
 ] as const;
 

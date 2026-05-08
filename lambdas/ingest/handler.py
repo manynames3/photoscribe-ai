@@ -100,6 +100,7 @@ def upsert_asset_policy(*, bucket: str, key: str, metadata: Any) -> None:
             ":created_at": {"S": now},
             ":description": {"S": metadata.description[:500]},
             ":mood": {"S": metadata.mood},
+            ":people_count": {"N": str(metadata.people_count)},
             ":review_status": {"S": DEFAULT_REVIEW_STATUS},
             ":scene_type": {"S": metadata.scene_type},
             ":s3_uri": {"S": f"s3://{bucket}/{key}"},
@@ -114,6 +115,7 @@ def upsert_asset_policy(*, bucket: str, key: str, metadata: Any) -> None:
             "created_at = if_not_exists(created_at, :created_at), "
             "ai_description = :description, "
             "mood = :mood, "
+            "people_count = :people_count, "
             "review_status = if_not_exists(review_status, :review_status), "
             "scene_type = :scene_type, "
             "s3_uri = :s3_uri, "

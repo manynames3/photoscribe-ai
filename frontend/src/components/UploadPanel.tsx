@@ -237,7 +237,7 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
                   {formatBytes(item.file.size)} · {statusText(item)}
                 </span>
                 {item.error ? <p>{item.error}</p> : null}
-                {item.key ? <p>{item.key}</p> : null}
+                {item.key ? <p>Stored for AI indexing.</p> : null}
               </div>
               <div className="upload-progress" aria-label={`${item.file.name} upload progress`}>
                 <span style={{ width: `${item.progress}%` }} />

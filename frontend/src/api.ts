@@ -1,4 +1,4 @@
-import type { PhotoResult, SearchFilters, SearchResponse, UploadResult } from "./types";
+import type { AssetTagsUpdate, PhotoResult, SearchFilters, SearchResponse, UploadResult } from "./types";
 
 const PREVIEW_RESULTS: PhotoResult[] = [
   {
@@ -15,6 +15,7 @@ const PREVIEW_RESULTS: PhotoResult[] = [
     timeOfDay: "morning",
     peopleCount: 6,
     source: "preview",
+    staffNames: [],
     subjects: ["executives", "reports", "conference room"],
     visibility: "library",
   },
@@ -32,6 +33,7 @@ const PREVIEW_RESULTS: PhotoResult[] = [
     timeOfDay: "afternoon",
     peopleCount: 3,
     source: "preview",
+    staffNames: [],
     subjects: ["doctor", "tablet", "hospital hallway"],
     visibility: "restricted",
   },
@@ -49,6 +51,7 @@ const PREVIEW_RESULTS: PhotoResult[] = [
     timeOfDay: "midday",
     peopleCount: 2,
     source: "preview",
+    staffNames: [],
     subjects: ["facilities", "safety", "clinical corridor"],
     visibility: "restricted",
   },
@@ -66,6 +69,7 @@ const PREVIEW_RESULTS: PhotoResult[] = [
     timeOfDay: "unknown",
     peopleCount: 8,
     source: "preview",
+    staffNames: [],
     subjects: ["community outreach", "families", "patient education"],
     visibility: "library",
   },
@@ -74,6 +78,7 @@ const PREVIEW_RESULTS: PhotoResult[] = [
 type ApiPhotoResult = Partial<{
   aspect_ratio: string;
   colors: string[];
+  curator_tags: string[];
   key: string;
   description: string;
   alt_text: string;
@@ -89,6 +94,7 @@ type ApiPhotoResult = Partial<{
   people_count: number;
   s3_key: string;
   review_status: string;
+  staff_names: string[];
   subjects: string[];
   visibility: string;
 }>;
@@ -169,6 +175,7 @@ function normalizeApiResults(results: unknown[]): PhotoResult[] {
       altText: item.alt_text ?? "Search result image.",
       seoCaption: item.seo_caption ?? "",
       aspectRatio: item.aspect_ratio,
+      curatorTags: item.curator_tags,
       dominantColors: item.colors,
       mood: item.mood ?? "neutral",
       sceneType: item.scene_type ?? "other",
@@ -176,6 +183,7 @@ function normalizeApiResults(results: unknown[]): PhotoResult[] {
       objectsDetected: item.objects_detected,
       peopleCount: item.people_count,
       reviewStatus: item.review_status,
+      staffNames: item.staff_names,
       subjects: item.subjects,
       timeOfDay: item.time_of_day ?? "unknown",
       thumbnailUrl: item.thumbnail_url,
@@ -200,6 +208,24 @@ function apiBaseUrl() {
 function authHeaders(): Record<string, string> {
   const authToken = window.localStorage.getItem("photoscribe.authToken")?.trim();
   return authToken ? { Authorization: `Bearer ${authToken}` } : {};
+}
+
+function curatorHeaders(token: string): Record<string, string> {
+  const trimmedToken = token.trim();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  if (!trimmedToken) {
+    return headers;
+  }
+
+  headers["x-upload-token"] = trimmedToken;
+  if (trimmedToken.includes(".")) {
+    headers.Authorization = `Bearer ${trimmedToken}`;
+  }
+
+  return headers;
 }
 
 export async function searchPhotos(query: string, filters: SearchFilters): Promise<SearchResponse> {
@@ -252,6 +278,44 @@ export async function searchPhotos(query: string, filters: SearchFilters): Promi
           groups: payload.security_context.groups ?? [],
         }
       : undefined,
+  };
+}
+
+export async function updateAssetTags(
+  key: string,
+  curatorTags: string[],
+  staffNames: string[],
+  token: string,
+): Promise<AssetTagsUpdate> {
+  const baseUrl = apiBaseUrl();
+  if (!baseUrl) {
+    throw new Error("Connect VITE_API_URL before saving curator tags.");
+  }
+
+  const response = await fetch(`${baseUrl}/assets/tags`, {
+    body: JSON.stringify({
+      curator_tags: curatorTags,
+      key,
+      staff_names: staffNames,
+    }),
+    headers: curatorHeaders(token),
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Tag update failed with status ${response.status}.`);
+  }
+
+  const payload = (await response.json()) as Partial<{
+    curator_tags: string[];
+    key: string;
+    staff_names: string[];
+  }>;
+
+  return {
+    curatorTags: payload.curator_tags ?? [],
+    key: payload.key ?? key,
+    staffNames: payload.staff_names ?? [],
   };
 }
 
