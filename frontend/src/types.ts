@@ -7,6 +7,8 @@ export type SearchFilters = Partial<{
 
 export type PhotoResult = {
   altText: string;
+  aspectRatio?: string;
+  dominantColors?: string[];
   description: string;
   distance?: number;
   id: string;
@@ -14,11 +16,14 @@ export type PhotoResult = {
   key: string;
   lighting: string;
   mood: string;
+  objectsDetected?: string[];
+  peopleCount?: number;
   reviewStatus?: string;
   sceneType: string;
   s3Key?: string;
   seoCaption: string;
   source: "preview" | "api";
+  subjects?: string[];
   thumbnailUrl?: string;
   timeOfDay: string;
   visibility?: string;

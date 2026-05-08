@@ -5,6 +5,10 @@ type PhotoCardProps = {
   result: PhotoResult;
 };
 
+function labelize(value: string | undefined) {
+  return value ? value.replace(/_/g, " ") : "not classified";
+}
+
 export function PhotoCard({ onOpen, result }: PhotoCardProps) {
   return (
     <button
@@ -28,13 +32,13 @@ export function PhotoCard({ onOpen, result }: PhotoCardProps) {
       <div className="photo-card-body">
         <div className="photo-card-meta">
           <span className="meta-pill">{result.mood}</span>
-          <span className="meta-subtle">{result.sceneType}</span>
-          {result.reviewStatus ? <span className="meta-subtle">{result.reviewStatus.replace(/_/g, " ")}</span> : null}
+          <span className="meta-subtle">{labelize(result.sceneType)}</span>
+          {result.reviewStatus ? <span className="meta-subtle">{labelize(result.reviewStatus)}</span> : null}
         </div>
         <p className="photo-description">{result.description}</p>
         <div className="photo-card-footer">
-          <span>{result.timeOfDay.replace(/_/g, " ")}</span>
-          <span>{result.visibility ?? (result.source === "api" ? "live" : "preview")}</span>
+          <span>{typeof result.peopleCount === "number" ? `${result.peopleCount} people` : "people uncounted"}</span>
+          <span>{labelize(result.visibility ?? (result.source === "api" ? "library" : "preview"))}</span>
         </div>
       </div>
     </button>

@@ -13,7 +13,9 @@ const PREVIEW_RESULTS: PhotoResult[] = [
     sceneType: "event",
     lighting: "studio",
     timeOfDay: "morning",
+    peopleCount: 6,
     source: "preview",
+    subjects: ["executives", "reports", "conference room"],
     visibility: "library",
   },
   {
@@ -28,7 +30,9 @@ const PREVIEW_RESULTS: PhotoResult[] = [
     sceneType: "documentary",
     lighting: "soft_diffused",
     timeOfDay: "afternoon",
+    peopleCount: 3,
     source: "preview",
+    subjects: ["doctor", "tablet", "hospital hallway"],
     visibility: "restricted",
   },
   {
@@ -43,7 +47,9 @@ const PREVIEW_RESULTS: PhotoResult[] = [
     sceneType: "documentary",
     lighting: "mixed",
     timeOfDay: "midday",
+    peopleCount: 2,
     source: "preview",
+    subjects: ["facilities", "safety", "clinical corridor"],
     visibility: "restricted",
   },
   {
@@ -58,12 +64,16 @@ const PREVIEW_RESULTS: PhotoResult[] = [
     sceneType: "event",
     lighting: "studio",
     timeOfDay: "unknown",
+    peopleCount: 8,
     source: "preview",
+    subjects: ["community outreach", "families", "patient education"],
     visibility: "library",
   },
 ];
 
 type ApiPhotoResult = Partial<{
+  aspect_ratio: string;
+  colors: string[];
   key: string;
   description: string;
   alt_text: string;
@@ -75,8 +85,11 @@ type ApiPhotoResult = Partial<{
   thumbnail_url: string;
   image_url: string;
   distance: number;
+  objects_detected: string[];
+  people_count: number;
   s3_key: string;
   review_status: string;
+  subjects: string[];
   visibility: string;
 }>;
 
@@ -155,10 +168,15 @@ function normalizeApiResults(results: unknown[]): PhotoResult[] {
       description: item.description ?? "No description returned.",
       altText: item.alt_text ?? "Search result image.",
       seoCaption: item.seo_caption ?? "",
+      aspectRatio: item.aspect_ratio,
+      dominantColors: item.colors,
       mood: item.mood ?? "neutral",
       sceneType: item.scene_type ?? "other",
       lighting: item.lighting ?? "other",
+      objectsDetected: item.objects_detected,
+      peopleCount: item.people_count,
       reviewStatus: item.review_status,
+      subjects: item.subjects,
       timeOfDay: item.time_of_day ?? "unknown",
       thumbnailUrl: item.thumbnail_url,
       imageUrl: item.image_url,

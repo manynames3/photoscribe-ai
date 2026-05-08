@@ -741,6 +741,36 @@ img {
   margin: 14px 0 0;
 }
 
+.use-guidance {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.use-guidance div {
+  background: rgba(47, 87, 79, 0.08);
+  border: 1px solid rgba(47, 87, 79, 0.12);
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.use-guidance span {
+  color: #7a6654;
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.use-guidance strong {
+  color: #213b36;
+  display: block;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .metadata-grid {
   display: grid;
   gap: 16px;

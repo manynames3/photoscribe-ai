@@ -276,6 +276,16 @@ def _ddb_string_list(value: dict[str, Any] | None) -> list[str]:
     return []
 
 
+def _csv_metadata(value: Any) -> list[str]:
+    if not value:
+        return []
+
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+
+    return [item.strip() for item in str(value).split(",") if item.strip()]
+
+
 def _get_asset_policy(s3_key: str) -> dict[str, Any] | None:
     if not ASSET_POLICY_TABLE_NAME:
         return None
@@ -329,6 +339,12 @@ def enrich_with_signed_url(match: Match, policy_metadata: dict[str, str] | None 
         "seo_caption": match.metadata.get("seo_caption", ""),
         "mood": match.metadata.get("mood", "neutral"),
         "scene_type": match.metadata.get("scene_type", "other"),
+        "lighting": match.metadata.get("lighting", "other"),
+        "people_count": match.metadata.get("people_count", 0),
+        "aspect_ratio": match.metadata.get("aspect_ratio", "landscape"),
+        "subjects": _csv_metadata(match.metadata.get("subjects_csv")),
+        "colors": _csv_metadata(match.metadata.get("colors_csv")),
+        "objects_detected": _csv_metadata(match.metadata.get("objects_csv")),
         "thumbnail_url": signed_url,
         "image_url": signed_url,
         "s3_key": s3_key,
