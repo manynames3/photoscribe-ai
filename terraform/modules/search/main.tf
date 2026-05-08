@@ -87,6 +87,17 @@ data "aws_iam_policy_document" "logs" {
   }
 
   statement {
+    actions   = ["s3:ListBucket"]
+    resources = [var.photo_bucket_arn]
+
+    condition {
+      test     = "StringLike"
+      values   = ["uploads/sha256/*"]
+      variable = "s3:prefix"
+    }
+  }
+
+  statement {
     actions   = ["s3:PutObject"]
     resources = ["${var.photo_bucket_arn}/uploads/*"]
   }

@@ -27,6 +27,7 @@ flowchart TB
         ingest["Ingest Lambda<br/>Python 3.12"]
         photos["S3 photo bucket<br/>Private objects, versioning, lifecycle"]
         events["EventBridge<br/>S3 Object Created events"]
+        ingest_queue["SQS ingest queue<br/>Buffered image indexing"]
         vectors["S3 Vectors<br/>photos index, cosine distance"]
         policy["DynamoDB asset policy<br/>review status, visibility, allowed groups"]
         audit["DynamoDB audit log<br/>search events + TTL"]
@@ -51,7 +52,8 @@ flowchart TB
 
     uploader --> photos
     photos --> events
-    events --> ingest
+    events --> ingest_queue
+    ingest_queue --> ingest
     ingest --> photos
     ingest --> bedrock
     ingest --> vectors
@@ -69,13 +71,14 @@ flowchart TB
 
 1. A JPEG, PNG, or WebP is uploaded to the private S3 photo bucket.
 2. S3 emits an Object Created event through EventBridge.
-3. EventBridge invokes the ingest Lambda.
-4. The ingest Lambda downloads the object from S3 and skips unsupported media types.
-5. Bedrock Claude returns structured photo metadata: description, alt text, caption, subjects, colors, mood, scene type, lighting, time of day, people count, and aspect ratio.
-6. Bedrock Titan Text Embeddings v2 embeds the generated description into a 1024-dimensional vector.
-7. The ingest Lambda writes the vector and metadata to the S3 Vectors `photos` index.
-8. The ingest Lambda creates or updates a DynamoDB asset policy row for the S3 key, preserving existing human review decisions with `if_not_exists`.
-9. The Lambda writes structured log entries to CloudWatch.
+3. EventBridge sends the event to SQS.
+4. The ingest Lambda polls SQS with capped event-source concurrency.
+5. The ingest Lambda downloads the object from S3 and skips unsupported media types.
+6. Bedrock Claude returns structured photo metadata: description, alt text, caption, subjects, colors, mood, scene type, lighting, time of day, people count, and aspect ratio.
+7. Bedrock Titan Text Embeddings v2 embeds the generated description into a 1024-dimensional vector.
+8. The ingest Lambda writes the vector and metadata to the S3 Vectors `photos` index.
+9. The ingest Lambda creates or updates a DynamoDB asset policy row for the S3 key, preserving existing human review decisions with `if_not_exists`.
+10. The Lambda writes structured log entries to CloudWatch.
 
 ### Search
 
@@ -92,11 +95,14 @@ flowchart TB
 ### Browser Upload
 
 1. A user selects or drags JPEG, PNG, or WebP files into the React upload panel.
-2. The UI calls `POST /uploads/presign` with filename, content type, file size, and an owner upload token.
-3. The Lambda validates the token by hashing it and comparing it to `UPLOAD_TOKEN_SHA256`.
-4. The Lambda returns a short-lived pre-signed S3 `PUT` URL scoped to an `uploads/YYYY/MM/DD/` object key.
-5. The browser uploads the file directly to private S3 without receiving AWS credentials.
-6. S3 emits the same Object Created event used by scripted uploads, so the existing ingest pipeline indexes the image.
+2. The UI computes a SHA-256 content hash for each file and skips exact duplicates already selected in the current batch.
+3. The UI calls `POST /uploads/presign` with filename, content type, file size, checksum, and an owner upload token.
+4. The Lambda validates the token by hashing it and comparing it to `UPLOAD_TOKEN_SHA256`.
+5. The Lambda maps the checksum to a deterministic `uploads/sha256/<prefix>/<checksum>.<ext>` object key.
+6. If that key already exists, the Lambda returns `duplicate: true` and no new S3 upload is performed.
+7. If the key is new, the Lambda returns a short-lived pre-signed S3 `PUT` URL and required upload headers.
+8. The browser uploads the file directly to private S3 without receiving AWS credentials.
+9. S3 emits the same Object Created event used by scripted uploads, so the existing ingest pipeline indexes the image.
 
 ## Deployment Shape
 
@@ -109,6 +115,7 @@ flowchart TB
 - AWS frontend hosting still exists as an optional Terraform module, but the active public site uses Cloudflare Pages.
 - The public portfolio deployment keeps `enable_api_auth = false`; private deployments can set `enable_api_auth = true` to require Cognito JWTs on `GET /search`.
 - Browser uploads stay disabled until `upload_token_sha256` is configured. This prevents anonymous public uploads from triggering storage and Bedrock costs.
+- S3 upload events are buffered through SQS, and the Lambda event-source mapping caps concurrent ingest invokes so Bedrock indexing bursts cannot consume all Lambda capacity and starve search/upload requests.
 
 ## Semantic Search Rationale
 
@@ -124,7 +131,7 @@ A query like `doctor reviewing results` can match images described as `physician
 - New assets default to `approved` in the public demo. A private review queue should set `default_asset_review_status = "pending_review"`.
 - Existing indexed assets may not have policy rows. Keep `missing_asset_policy_default = "allow"` during migration, then change it to `deny` after backfilling policy rows.
 - S3 Vectors is provisioned with the `awscc` provider because this repo uses Cloud Control coverage for vector bucket and index resources.
-- Claude image description is the primary variable cost; repeated ingest should be avoided by treating the S3 object key as the vector key.
+- Claude image description is the primary variable cost; repeated ingest is avoided for exact duplicates by using checksum-derived S3 object keys.
 - The current thumbnail strategy returns signed URLs for original objects. A generated thumbnail pipeline is future work.
 - Cloudflare Pages deployment uses a GitHub Actions secret. The Cloudflare API token must never be committed or exposed to the browser.
 

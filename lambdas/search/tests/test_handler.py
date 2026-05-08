@@ -3,8 +3,14 @@ from __future__ import annotations
 from hashlib import sha256
 from json import dumps, loads
 
+from botocore.exceptions import ClientError
+
 from lambdas.search import handler as search_handler
 from lambdas.search.vectors import Match
+
+
+def _not_found_error() -> ClientError:
+    return ClientError({"Error": {"Code": "404"}}, "HeadObject")
 
 
 def test_search_handler_requires_q() -> None:
@@ -226,12 +232,15 @@ def test_upload_presign_rejects_invalid_token(monkeypatch) -> None:
 
 def test_upload_presign_returns_signed_put_url(monkeypatch) -> None:
     class FakeS3Client:
+        def head_object(self, **_kwargs: object) -> dict[str, object]:
+            raise _not_found_error()
+
         def generate_presigned_url(self, operation: str, **kwargs: object) -> str:
             assert operation == "put_object"
             assert kwargs["Params"]["Bucket"] == "photos"
             assert kwargs["Params"]["ContentType"] == "image/webp"
-            assert str(kwargs["Params"]["Key"]).startswith("uploads/")
-            assert str(kwargs["Params"]["Key"]).endswith("-My-Image.webp")
+            assert kwargs["Params"]["Metadata"] == {"sha256": "a" * 64}
+            assert kwargs["Params"]["Key"] == f"uploads/sha256/aa/{'a' * 64}.webp"
             return "https://signed.example/upload"
 
     monkeypatch.setattr(search_handler, "_s3_client", lambda: FakeS3Client())
@@ -242,7 +251,14 @@ def test_upload_presign_returns_signed_put_url(monkeypatch) -> None:
         {
             "routeKey": "POST /uploads/presign",
             "headers": {"x-upload-token": "secret"},
-            "body": dumps({"filename": "My Image.jpeg", "content_type": "image/webp", "size_bytes": 100}),
+            "body": dumps(
+                {
+                    "checksum_sha256": "a" * 64,
+                    "content_type": "image/webp",
+                    "filename": "My Image.jpeg",
+                    "size_bytes": 100,
+                }
+            ),
         },
         None,
     )
@@ -250,9 +266,51 @@ def test_upload_presign_returns_signed_put_url(monkeypatch) -> None:
 
     assert response["statusCode"] == 200
     assert body["content_type"] == "image/webp"
-    assert body["headers"] == {"Content-Type": "image/webp"}
+    assert body["duplicate"] is False
+    assert body["headers"] == {"Content-Type": "image/webp", "x-amz-meta-sha256": "a" * 64}
+    assert body["key"] == f"uploads/sha256/aa/{'a' * 64}.webp"
     assert body["method"] == "PUT"
     assert body["upload_url"] == "https://signed.example/upload"
+
+
+def test_upload_presign_skips_existing_checksum(monkeypatch) -> None:
+    class FakeS3Client:
+        def head_object(self, **kwargs: object) -> dict[str, object]:
+            assert kwargs["Bucket"] == "photos"
+            assert kwargs["Key"] == f"uploads/sha256/bb/{'b' * 64}.jpg"
+            return {}
+
+        def generate_presigned_url(self, *_args: object, **_kwargs: object) -> str:
+            raise AssertionError("duplicate objects should not receive a new presigned URL")
+
+    monkeypatch.setattr(search_handler, "_s3_client", lambda: FakeS3Client())
+    monkeypatch.setattr(search_handler, "PHOTO_BUCKET_NAME", "photos")
+    monkeypatch.setattr(search_handler, "UPLOAD_TOKEN_SHA256", sha256(b"secret").hexdigest())
+
+    response = search_handler.handler(
+        {
+            "routeKey": "POST /uploads/presign",
+            "headers": {"x-upload-token": "secret"},
+            "body": dumps(
+                {
+                    "checksum_sha256": "b" * 64,
+                    "content_type": "image/jpeg",
+                    "filename": "duplicate.jpg",
+                    "size_bytes": 100,
+                }
+            ),
+        },
+        None,
+    )
+    body = loads(response["body"])
+
+    assert response["statusCode"] == 200
+    assert body == {
+        "bucket": "photos",
+        "content_type": "image/jpeg",
+        "duplicate": True,
+        "key": f"uploads/sha256/bb/{'b' * 64}.jpg",
+    }
 
 
 def test_upload_presign_rejects_unsupported_content_type(monkeypatch) -> None:

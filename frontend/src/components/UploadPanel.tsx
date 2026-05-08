@@ -27,6 +27,30 @@ function createQueueItems(files: File[]) {
   }));
 }
 
+async function sha256File(file: File) {
+  const buffer = await file.arrayBuffer();
+  const digest = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function statusText(item: UploadQueueItem) {
+  if (item.status === "done") {
+    return "indexing started";
+  }
+
+  if (item.status === "duplicate") {
+    return "duplicate skipped";
+  }
+
+  if (item.status === "hashing") {
+    return "checking duplicate";
+  }
+
+  return item.status;
+}
+
 export function UploadPanel({ onUploaded }: UploadPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -59,20 +83,59 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
     window.localStorage.setItem(TOKEN_STORAGE_KEY, uploadToken);
     setIsUploading(true);
     let uploadedCount = 0;
+    const seenChecksums = new Set(
+      items
+        .filter((item) => item.status === "done" || item.status === "duplicate")
+        .map((item) => item.checksumSha256)
+        .filter((checksum): checksum is string => Boolean(checksum)),
+    );
 
     for (const item of items) {
-      if (item.status === "done") {
+      if (item.status === "done" || item.status === "duplicate") {
         continue;
       }
 
-      updateItem(item.id, { error: undefined, progress: 1, status: "uploading" });
+      let checksumSha256 = item.checksumSha256;
+      let reservedChecksum = false;
+
       try {
-        const result = await uploadPhoto(item.file, uploadToken, (progress) => {
+        updateItem(item.id, { error: undefined, progress: 1, status: "hashing" });
+        checksumSha256 = checksumSha256 ?? (await sha256File(item.file));
+        updateItem(item.id, { checksumSha256 });
+
+        if (seenChecksums.has(checksumSha256)) {
+          updateItem(item.id, {
+            error: "This exact file was already selected or uploaded in this batch.",
+            progress: 100,
+            status: "duplicate",
+          });
+          continue;
+        }
+
+        seenChecksums.add(checksumSha256);
+        reservedChecksum = true;
+        updateItem(item.id, { progress: 2, status: "uploading" });
+
+        const result = await uploadPhoto(item.file, uploadToken, checksumSha256, (progress) => {
           updateItem(item.id, { progress });
         });
+
+        if (result.duplicate) {
+          updateItem(item.id, {
+            error: "This content already exists in the photo library.",
+            key: result.key,
+            progress: 100,
+            status: "duplicate",
+          });
+          continue;
+        }
+
         uploadedCount += 1;
         updateItem(item.id, { key: result.key, progress: 100, status: "done" });
       } catch (error) {
+        if (reservedChecksum && checksumSha256) {
+          seenChecksums.delete(checksumSha256);
+        }
         updateItem(item.id, {
           error: error instanceof Error ? error.message : "Upload failed.",
           status: "error",
@@ -86,7 +149,7 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
     }
   }
 
-  const readyCount = items.filter((item) => item.status !== "done").length;
+  const readyCount = items.filter((item) => item.status !== "done" && item.status !== "duplicate").length;
 
   return (
     <section className="upload-panel">
@@ -95,7 +158,8 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
         <h2>Add images to the library</h2>
         <p>
           Drag in JPEG, PNG, or WebP files. The browser uploads directly to private S3 with a
-          short-lived signed URL, then the existing Bedrock ingest pipeline indexes each image.
+          short-lived signed URL, skips exact duplicates by content hash, then the existing Bedrock
+          ingest pipeline indexes each new image.
         </p>
       </div>
 
@@ -170,7 +234,7 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
               <div>
                 <strong>{item.file.name}</strong>
                 <span>
-                  {formatBytes(item.file.size)} · {item.status === "done" ? "indexing started" : item.status}
+                  {formatBytes(item.file.size)} · {statusText(item)}
                 </span>
                 {item.error ? <p>{item.error}</p> : null}
                 {item.key ? <p>{item.key}</p> : null}

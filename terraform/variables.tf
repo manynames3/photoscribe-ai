@@ -118,3 +118,9 @@ variable "max_upload_bytes" {
   type        = number
   default     = 15728640
 }
+
+variable "ingest_event_source_max_concurrency" {
+  description = "Maximum concurrent ingest Lambda invokes from the SQS event source. Keeps image indexing from starving upload/search API capacity."
+  type        = number
+  default     = 2
+}

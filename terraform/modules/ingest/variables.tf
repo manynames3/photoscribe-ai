@@ -38,6 +38,11 @@ variable "embed_model_id" {
   type        = string
 }
 
+variable "event_source_max_concurrency" {
+  description = "Maximum concurrent ingest Lambda invokes from the SQS event source."
+  type        = number
+}
+
 variable "event_bucket_name" {
   description = "Bucket name that emits photo-created events."
   type        = string

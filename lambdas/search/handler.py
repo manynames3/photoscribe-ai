@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import json
-import logging
-import os
 import base64
 import hashlib
 import hmac
+import json
+import logging
+import os
 import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -15,6 +15,7 @@ from urllib.parse import unquote
 from uuid import uuid4
 
 import boto3
+from botocore.exceptions import ClientError
 
 from .bedrock import embed_text
 from .vectors import Match, query
@@ -39,6 +40,7 @@ ALLOWED_UPLOAD_TYPES = {
     "image/webp": ".webp",
 }
 SAFE_FILENAME_PATTERN = re.compile(r"[^A-Za-z0-9._-]+")
+CHECKSUM_SHA256_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 
 
 def _s3_client() -> Any:
@@ -127,6 +129,23 @@ def _safe_upload_filename(filename: str, content_type: str) -> str:
     return f"{safe_base or 'upload'}{extension}"
 
 
+def _upload_key_for_checksum(checksum_sha256: str, content_type: str) -> str:
+    extension = ALLOWED_UPLOAD_TYPES[content_type]
+    return f"uploads/sha256/{checksum_sha256[:2]}/{checksum_sha256}{extension}"
+
+
+def _object_exists(key: str) -> bool:
+    try:
+        _s3_client().head_object(Bucket=PHOTO_BUCKET_NAME, Key=key)
+    except ClientError as error:
+        code = str(error.response.get("Error", {}).get("Code", ""))
+        if code in {"404", "NoSuchKey", "NotFound"}:
+            return False
+        raise
+
+    return True
+
+
 def _handle_upload_presign(event: dict[str, Any]) -> dict[str, Any]:
     if not UPLOAD_TOKEN_SHA256:
         return _response(403, {"error": "browser uploads are disabled for this deployment"})
@@ -139,6 +158,7 @@ def _handle_upload_presign(event: dict[str, Any]) -> dict[str, Any]:
         filename = str(payload.get("filename", "")).strip()
         content_type = str(payload.get("content_type", "")).split(";")[0].strip().lower()
         size_bytes = int(payload.get("size_bytes", 0))
+        checksum_sha256 = str(payload.get("checksum_sha256", "")).strip().lower()
     except (TypeError, ValueError) as error:
         return _response(400, {"error": str(error)})
 
@@ -148,19 +168,37 @@ def _handle_upload_presign(event: dict[str, Any]) -> dict[str, Any]:
     if size_bytes <= 0 or size_bytes > MAX_UPLOAD_BYTES:
         return _response(400, {"error": f"file must be between 1 byte and {MAX_UPLOAD_BYTES} bytes"})
 
+    if not CHECKSUM_SHA256_PATTERN.fullmatch(checksum_sha256):
+        return _response(400, {"error": "checksum_sha256 must be a 64-character lowercase hex SHA-256 digest"})
+
     try:
-        safe_filename = _safe_upload_filename(filename, content_type)
+        _safe_upload_filename(filename, content_type)
     except ValueError as error:
         return _response(400, {"error": str(error)})
 
-    date_prefix = datetime.now(UTC).strftime("%Y/%m/%d")
-    key = f"uploads/{date_prefix}/{uuid4()}-{safe_filename}"
+    key = _upload_key_for_checksum(checksum_sha256, content_type)
+    if _object_exists(key):
+        return _response(
+            200,
+            {
+                "bucket": PHOTO_BUCKET_NAME,
+                "content_type": content_type,
+                "duplicate": True,
+                "key": key,
+            },
+        )
+
+    upload_headers = {
+        "Content-Type": content_type,
+        "x-amz-meta-sha256": checksum_sha256,
+    }
     upload_url = _s3_client().generate_presigned_url(
         "put_object",
         Params={
             "Bucket": PHOTO_BUCKET_NAME,
             "ContentType": content_type,
             "Key": key,
+            "Metadata": {"sha256": checksum_sha256},
         },
         ExpiresIn=UPLOAD_URL_TTL_SECONDS,
     )
@@ -170,8 +208,9 @@ def _handle_upload_presign(event: dict[str, Any]) -> dict[str, Any]:
         {
             "bucket": PHOTO_BUCKET_NAME,
             "content_type": content_type,
+            "duplicate": False,
             "expires_in": UPLOAD_URL_TTL_SECONDS,
-            "headers": {"Content-Type": content_type},
+            "headers": upload_headers,
             "key": key,
             "method": "PUT",
             "upload_url": upload_url,

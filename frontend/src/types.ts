@@ -37,15 +37,17 @@ export type SearchResponse = {
 };
 
 export type UploadQueueItem = {
+  checksumSha256?: string;
   error?: string;
   file: File;
   id: string;
   key?: string;
   progress: number;
-  status: "ready" | "uploading" | "done" | "error";
+  status: "ready" | "hashing" | "uploading" | "done" | "duplicate" | "error";
 };
 
 export type UploadResult = {
   bucket: string;
+  duplicate?: boolean;
   key: string;
 };

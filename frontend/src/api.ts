@@ -92,8 +92,16 @@ type ApiSearchResponse = Partial<SearchResponse> & {
 type UploadPresignResponse = {
   bucket: string;
   content_type: string;
-  headers: Record<string, string>;
+  duplicate?: boolean;
+  headers?: Record<string, string>;
   key: string;
+  method?: "PUT";
+  upload_url?: string;
+};
+
+type SignedUploadPresignResponse = UploadPresignResponse & {
+  duplicate?: false;
+  headers: Record<string, string>;
   method: "PUT";
   upload_url: string;
 };
@@ -248,9 +256,71 @@ function inferContentType(file: File) {
   return "application/octet-stream";
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function isRetryableStatus(status: number) {
+  return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+
+async function requestUploadPresign(
+  file: File,
+  uploadToken: string,
+  checksumSha256: string,
+): Promise<UploadPresignResponse> {
+  const baseUrl = apiBaseUrl();
+  const contentType = inferContentType(file);
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const response = await fetch(`${baseUrl}/uploads/presign`, {
+      body: JSON.stringify({
+        checksum_sha256: checksumSha256,
+        content_type: contentType,
+        filename: file.name,
+        size_bytes: file.size,
+      }),
+      headers: {
+        "Content-Type": "application/json",
+        "x-upload-token": uploadToken,
+        ...authHeaders(),
+      },
+      method: "POST",
+    });
+
+    const payload = (await response.json().catch(() => ({}))) as Partial<UploadPresignResponse> & { error?: string };
+    if (response.ok) {
+      if (!payload.key || !payload.bucket) {
+        throw new Error("Upload API returned an invalid duplicate response.");
+      }
+
+      if (payload.duplicate) {
+        return payload as UploadPresignResponse;
+      }
+
+      if (!payload.upload_url || !payload.headers || payload.method !== "PUT") {
+        throw new Error("Upload API returned an invalid presigned URL response.");
+      }
+
+      return payload as UploadPresignResponse;
+    }
+
+    const message = payload.error ?? `Upload request failed with status ${response.status}.`;
+    lastError = new Error(message);
+    if (!isRetryableStatus(response.status) || attempt === 3) {
+      throw lastError;
+    }
+
+    await sleep(500 * 2 ** attempt);
+  }
+
+  throw lastError ?? new Error("Upload request failed.");
+}
+
 function putFileWithProgress(
   file: File,
-  presign: UploadPresignResponse,
+  presign: SignedUploadPresignResponse,
   onProgress: (progress: number) => void,
 ) {
   return new Promise<void>((resolve, reject) => {
@@ -284,6 +354,7 @@ function putFileWithProgress(
 export async function uploadPhoto(
   file: File,
   uploadToken: string,
+  checksumSha256: string,
   onProgress: (progress: number) => void,
 ): Promise<UploadResult> {
   const baseUrl = apiBaseUrl();
@@ -291,31 +362,17 @@ export async function uploadPhoto(
     throw new Error("Upload requires VITE_API_URL to point at the deployed API.");
   }
 
-  const contentType = inferContentType(file);
-  const response = await fetch(`${baseUrl}/uploads/presign`, {
-    body: JSON.stringify({
-      content_type: contentType,
-      filename: file.name,
-      size_bytes: file.size,
-    }),
-    headers: {
-      "Content-Type": "application/json",
-      "x-upload-token": uploadToken,
-      ...authHeaders(),
-    },
-    method: "POST",
-  });
-
-  const payload = (await response.json()) as Partial<UploadPresignResponse> & { error?: string };
-  if (!response.ok) {
-    throw new Error(payload.error ?? `Upload request failed with status ${response.status}.`);
+  const payload = await requestUploadPresign(file, uploadToken, checksumSha256);
+  if (payload.duplicate) {
+    onProgress(100);
+    return {
+      bucket: payload.bucket,
+      duplicate: true,
+      key: payload.key,
+    };
   }
 
-  if (!payload.upload_url || !payload.key || !payload.bucket || !payload.headers) {
-    throw new Error("Upload API returned an invalid presigned URL response.");
-  }
-
-  await putFileWithProgress(file, payload as UploadPresignResponse, onProgress);
+  await putFileWithProgress(file, payload as SignedUploadPresignResponse, onProgress);
 
   return {
     bucket: payload.bucket,

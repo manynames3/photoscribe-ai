@@ -116,24 +116,25 @@ module "frontend" {
 module "ingest" {
   source = "./modules/ingest"
 
-  account_id              = data.aws_caller_identity.current.account_id
-  asset_policy_table_arn  = module.governance.asset_policy_table_arn
-  asset_policy_table_name = module.governance.asset_policy_table_name
-  claude_model_id         = var.claude_model_id
-  default_allowed_groups  = var.default_asset_allowed_groups
-  default_review_status   = var.default_asset_review_status
-  default_visibility      = var.default_asset_visibility
-  embed_model_id          = var.embed_model_id
-  event_bucket_name       = module.storage.photo_bucket_name
-  lambda_name             = local.ingest_lambda_name
-  lambda_source_dir       = "${path.root}/../lambdas/ingest"
-  partition               = data.aws_partition.current.partition
-  photo_bucket_arn        = module.storage.photo_bucket_arn
-  region                  = var.region
-  tags                    = local.common_tags
-  vector_bucket_name      = module.vectors.vector_bucket_name
-  vector_index_arn        = module.vectors.vector_index_arn
-  vector_index_name       = local.vector_index_name
+  account_id                   = data.aws_caller_identity.current.account_id
+  asset_policy_table_arn       = module.governance.asset_policy_table_arn
+  asset_policy_table_name      = module.governance.asset_policy_table_name
+  claude_model_id              = var.claude_model_id
+  default_allowed_groups       = var.default_asset_allowed_groups
+  default_review_status        = var.default_asset_review_status
+  default_visibility           = var.default_asset_visibility
+  embed_model_id               = var.embed_model_id
+  event_source_max_concurrency = var.ingest_event_source_max_concurrency
+  event_bucket_name            = module.storage.photo_bucket_name
+  lambda_name                  = local.ingest_lambda_name
+  lambda_source_dir            = "${path.root}/../lambdas/ingest"
+  partition                    = data.aws_partition.current.partition
+  photo_bucket_arn             = module.storage.photo_bucket_arn
+  region                       = var.region
+  tags                         = local.common_tags
+  vector_bucket_name           = module.vectors.vector_bucket_name
+  vector_index_arn             = module.vectors.vector_index_arn
+  vector_index_name            = local.vector_index_name
 }
 
 module "search" {

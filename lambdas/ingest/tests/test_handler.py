@@ -92,6 +92,25 @@ def test_ingest_handler_skips_unsupported_media_type(monkeypatch) -> None:
     assert json.loads(response["body"])["records"] == 1
 
 
+def test_ingest_handler_extracts_eventbridge_event_from_sqs(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr("lambdas.ingest.handler.download_image", lambda *_args: (b"content", "image/webp"))
+    monkeypatch.setattr("lambdas.ingest.handler.describe_image", lambda *_args: _sample_metadata())
+    monkeypatch.setattr("lambdas.ingest.handler.embed_text", lambda _text: [0.1, 0.2, 0.3])
+    monkeypatch.setattr("lambdas.ingest.handler.put_vector", lambda **kwargs: captured.update(kwargs))
+
+    eventbridge_event = {
+        "source": "aws.s3",
+        "detail-type": "Object Created",
+        "detail": {"bucket": {"name": "photos"}, "object": {"key": "uploads%2Fimage.webp"}},
+    }
+    response = handler({"Records": [{"eventSource": "aws:sqs", "body": json.dumps(eventbridge_event)}]}, None)
+
+    assert response["statusCode"] == 200
+    assert json.loads(response["body"])["records"] == 1
+    assert captured["key"] == "uploads/image.webp"
+
+
 def test_upsert_asset_policy_preserves_review_decisions(monkeypatch) -> None:
     captured: dict[str, object] = {}
 

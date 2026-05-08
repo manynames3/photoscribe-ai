@@ -28,6 +28,13 @@ locals {
   embed_arn = "arn:${var.partition}:bedrock:${var.region}::foundation-model/${var.embed_model_id}"
 }
 
+resource "aws_sqs_queue" "ingest" {
+  name                       = "${var.lambda_name}-queue"
+  message_retention_seconds  = 345600
+  tags                       = var.tags
+  visibility_timeout_seconds = 180
+}
+
 resource "terraform_data" "package" {
   triggers_replace = [local.source_hash, local.package_recipe]
 
@@ -98,6 +105,17 @@ data "aws_iam_policy_document" "logs" {
     actions   = ["dynamodb:UpdateItem"]
     resources = [var.asset_policy_table_arn]
   }
+
+  statement {
+    actions = [
+      "sqs:ChangeMessageVisibility",
+      "sqs:DeleteMessage",
+      "sqs:GetQueueAttributes",
+      "sqs:GetQueueUrl",
+      "sqs:ReceiveMessage",
+    ]
+    resources = [aws_sqs_queue.ingest.arn]
+  }
 }
 
 resource "aws_iam_role" "lambda" {
@@ -163,15 +181,41 @@ resource "aws_cloudwatch_event_rule" "photo_created" {
   tags = var.tags
 }
 
-resource "aws_cloudwatch_event_target" "lambda" {
-  arn  = aws_lambda_function.this.arn
+resource "aws_sqs_queue_policy" "eventbridge" {
+  policy    = data.aws_iam_policy_document.eventbridge_queue.json
+  queue_url = aws_sqs_queue.ingest.id
+}
+
+data "aws_iam_policy_document" "eventbridge_queue" {
+  statement {
+    actions   = ["sqs:SendMessage"]
+    resources = [aws_sqs_queue.ingest.arn]
+
+    condition {
+      test     = "ArnEquals"
+      values   = [aws_cloudwatch_event_rule.photo_created.arn]
+      variable = "aws:SourceArn"
+    }
+
+    principals {
+      identifiers = ["events.amazonaws.com"]
+      type        = "Service"
+    }
+  }
+}
+
+resource "aws_cloudwatch_event_target" "queue" {
+  arn  = aws_sqs_queue.ingest.arn
   rule = aws_cloudwatch_event_rule.photo_created.name
 }
 
-resource "aws_lambda_permission" "eventbridge" {
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.this.function_name
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.photo_created.arn
-  statement_id  = "AllowExecutionFromEventBridge"
+resource "aws_lambda_event_source_mapping" "ingest_queue" {
+  batch_size                         = 1
+  event_source_arn                   = aws_sqs_queue.ingest.arn
+  function_name                      = aws_lambda_function.this.arn
+  maximum_batching_window_in_seconds = 0
+
+  scaling_config {
+    maximum_concurrency = var.event_source_max_concurrency
+  }
 }

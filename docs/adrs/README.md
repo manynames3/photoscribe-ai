@@ -10,6 +10,7 @@ This directory records the main architecture choices behind PhotoScribe AI.
 - [ADR 0004: Host the frontend on Cloudflare Pages](0004-cloudflare-pages.md)
 - [ADR 0005: Use pre-signed S3 URLs for demo image access](0005-presigned-s3-urls.md)
 - [ADR 0006: Add optional auth and governance controls](0006-optional-auth-governance.md)
+- [ADR 0007: Use content-addressed browser uploads](0007-content-addressed-uploads.md)
 
 ## Format
 

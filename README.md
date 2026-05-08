@@ -75,7 +75,8 @@ For the PhotoScribe demo asset workflow, the companion tool reduced multi-megaby
 - **Least-privilege IAM:** Each Lambda has its own IAM role scoped to the Bedrock, S3, S3 Vectors, and CloudWatch resources it needs.
 - **Private-library controls:** Terraform can enable Cognito JWT auth on `GET /search`; Lambda enforces DynamoDB asset policies before issuing signed image URLs.
 - **Audit and review workflow:** Ingest creates asset policy rows with review status and visibility; search writes audit events with result counts and policy-filtered counts.
-- **Safe browser uploads:** The UI requests owner-gated pre-signed S3 PUT URLs, uploads directly to the private bucket, and lets the existing ingest pipeline index the new assets.
+- **Safe browser uploads:** The UI hashes files client-side, skips exact duplicates, requests owner-gated pre-signed S3 PUT URLs, uploads directly to the private bucket, and lets the ingest pipeline index new assets.
+- **Burst protection:** S3 events flow through SQS with capped Lambda event-source concurrency so AI indexing cannot starve interactive API requests during bulk uploads.
 - **Cost-aware architecture:** S3 Vectors avoids always-on vector infrastructure for a low-volume portfolio workload.
 - **Infrastructure as code:** Terraform defines AWS storage, vector, compute, API, observability, and optional frontend hosting resources.
 - **CI/CD-ready frontend:** Every push can build and deploy the Vite frontend to Cloudflare Pages using a GitHub Actions secret for Cloudflare deploy access.
@@ -102,7 +103,8 @@ flowchart LR
 
     uploader["Photo upload"] --> photos
     photos --> events["S3 EventBridge notification"]
-    events --> ingest["Ingest Lambda<br/>Python 3.12"]
+    events --> queue["SQS ingest queue<br/>concurrency cap"]
+    queue --> ingest["Ingest Lambda<br/>Python 3.12"]
     ingest --> claude["Bedrock<br/>Claude multimodal"]
     ingest --> embed
     ingest --> vectors
@@ -207,7 +209,7 @@ terraform apply \
   -var="upload_token_sha256=$UPLOAD_TOKEN_SHA256"
 ```
 
-After deploy, paste the raw `UPLOAD_TOKEN` into the frontend upload form. Only the token hash should be stored in Terraform variables; the raw token should not be committed.
+After deploy, paste the raw `UPLOAD_TOKEN` into the frontend upload form. Only the token hash should be stored in Terraform variables; the raw token should not be committed. Browser uploads use SHA-256 content hashes for deterministic S3 keys, so exact duplicate files are skipped before another S3 PUT or Bedrock ingest is triggered.
 
 To seed photos after deploy:
 
@@ -240,7 +242,7 @@ Manual smoke test:
 - Lambda IAM policies are scoped to the resources used by each function.
 - Optional Cognito JWT auth can be enabled with `enable_api_auth = true`.
 - Search Lambda checks DynamoDB asset policy rows before returning signed URLs.
-- Browser uploads require an owner upload token and return pre-signed S3 PUT URLs instead of exposing AWS credentials.
+- Browser uploads require an owner upload token, skip exact duplicates by SHA-256 hash, and return pre-signed S3 PUT URLs instead of exposing AWS credentials.
 - Search audit records are written to DynamoDB with TTL-based retention.
 - GitHub Actions uses secrets for deployment credentials.
 - CloudWatch log groups use retention policies.

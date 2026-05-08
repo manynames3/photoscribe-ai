@@ -41,6 +41,16 @@ def _extract_s3_records(event: dict[str, Any]) -> list[dict[str, str]]:
     if isinstance(records, list):
         extracted: list[dict[str, str]] = []
         for record in records:
+            if record.get("eventSource") == "aws:sqs" and record.get("body"):
+                try:
+                    body = json.loads(record["body"])
+                except json.JSONDecodeError:
+                    LOGGER.warning("skipping SQS message with invalid JSON body")
+                    continue
+                if isinstance(body, dict):
+                    extracted.extend(_extract_s3_records(body))
+                continue
+
             bucket = record.get("s3", {}).get("bucket", {}).get("name")
             key = record.get("s3", {}).get("object", {}).get("key")
             if bucket and key:
