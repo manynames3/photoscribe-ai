@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 
 import { searchPhotos } from "./api";
+import { currentAuthSession, signOut } from "./auth";
+import { AdminPanel } from "./components/AdminPanel";
 import { FilterPanel } from "./components/FilterPanel";
+import { LoginPanel } from "./components/LoginPanel";
 import { PhotoGrid } from "./components/PhotoGrid";
 import { PhotoModal } from "./components/PhotoModal";
+import { ReviewQueue } from "./components/ReviewQueue";
 import { SearchBar } from "./components/SearchBar";
 import { UploadPanel } from "./components/UploadPanel";
-import type { PhotoResult, SearchFilters } from "./types";
+import type { AuthSession, PhotoResult, SearchFilters } from "./types";
 
 const SAMPLE_QUERIES = [
   "physician at nurses station",
@@ -64,6 +68,7 @@ export function App() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoResult | null>(null);
+  const [authSession, setAuthSession] = useState<AuthSession | null>(() => currentAuthSession());
   const [securityContext, setSecurityContext] = useState({
     authMode: "anonymous",
     deniedResults: 0,
@@ -128,6 +133,10 @@ export function App() {
   }
 
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
+  const userGroups = authSession?.groups ?? [];
+  const canReview = userGroups.includes("admin") || userGroups.includes("reviewer");
+  const canAdmin = userGroups.includes("admin");
+  const isSignedIn = Boolean(authSession);
 
   return (
     <>
@@ -188,13 +197,34 @@ export function App() {
           />
         </section>
 
-        <UploadPanel
-          onUploaded={(uploadedCount) => {
-            setStatus(
-              `${uploadedCount} upload${uploadedCount === 1 ? "" : "s"} accepted. Assets become searchable after AI metadata extraction and policy indexing finish.`,
-            );
+        <LoginPanel
+          authSession={authSession}
+          onSignIn={(session) => {
+            setAuthSession(session);
+            setSecurityContext({ authMode: "jwt", deniedResults: 0, groups: session.groups });
+          }}
+          onSignOut={() => {
+            signOut();
+            setAuthSession(null);
+            setResults([]);
+            setSecurityContext({ authMode: "anonymous", deniedResults: 0, groups: [] });
+            setStatus("Sign in to search the private hospital media library.");
           }}
         />
+
+        {isSignedIn ? (
+          <>
+            <UploadPanel
+              onUploaded={(uploadedCount) => {
+                setStatus(
+                  `${uploadedCount} upload${uploadedCount === 1 ? "" : "s"} accepted. Assets enter the review queue after AI metadata extraction finishes.`,
+                );
+              }}
+            />
+            <ReviewQueue canReview={canReview} onOpen={setSelectedPhoto} />
+            <AdminPanel canAdmin={canAdmin} />
+          </>
+        ) : null}
 
         <section className="content-grid">
           <aside className="sidebar-panel">
@@ -224,9 +254,9 @@ export function App() {
               <div className="mode-stack">
                 <span className="mode-pill">{import.meta.env.VITE_API_URL ? "Hospital asset API" : "Sample catalog"}</span>
                 <span className="mode-subtle">
-                  {securityContext.authMode === "jwt"
-                    ? `JWT: ${securityContext.groups.join(", ") || "no groups"}`
-                    : "Unauthenticated review mode"}
+                  {authSession
+                    ? `${authSession.groups.join(", ") || "no role groups"}`
+                    : "Sign in required for live assets"}
                 </span>
                 {securityContext.deniedResults ? (
                   <span className="mode-subtle">{securityContext.deniedResults} policy-filtered</span>
@@ -254,7 +284,12 @@ export function App() {
         </footer>
       </main>
 
-      <PhotoModal photo={selectedPhoto} onClose={() => setSelectedPhoto(null)} />
+      <PhotoModal
+        authSession={authSession}
+        canCurate={canReview}
+        photo={selectedPhoto}
+        onClose={() => setSelectedPhoto(null)}
+      />
     </>
   );
 }

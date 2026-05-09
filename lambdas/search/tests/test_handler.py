@@ -82,10 +82,16 @@ def test_search_handler_returns_enriched_results(monkeypatch) -> None:
                 "objects_detected": ["lab coat", "stethoscope"],
                 "thumbnail_url": "https://signed.example/image.jpg",
                 "image_url": "https://signed.example/image.jpg",
+                "campaign": "",
+                "consent_status": "missing",
                 "curator_tags": [],
+                "expiration_date": "",
+                "location": "",
+                "owner_department": "",
                 "review_status": "unmanaged",
                 "s3_key": "image.jpg",
                 "staff_names": [],
+                "usage_rights": "unknown",
                 "visibility": "library",
             }
         ],
@@ -360,6 +366,129 @@ def test_asset_tags_accepts_owner_token_and_updates_policy(monkeypatch) -> None:
     assert audit_items[0]["event_type"] == {"S": "asset_tags_updated"}
 
 
+def test_asset_policy_updates_review_metadata_for_reviewer(monkeypatch) -> None:
+    updated_items: list[dict[str, object]] = []
+
+    class FakeDynamoDBClient:
+        def update_item(self, **kwargs: object) -> None:
+            updated_items.append(kwargs)
+
+        def put_item(self, **_kwargs: object) -> None:
+            return None
+
+    monkeypatch.setattr(search_handler, "_dynamodb_client", lambda: FakeDynamoDBClient())
+    monkeypatch.setattr(search_handler, "ASSET_POLICY_TABLE_NAME", "asset-policy")
+    monkeypatch.setattr(search_handler, "AUDIT_LOG_TABLE_NAME", "")
+    monkeypatch.setattr(search_handler, "LIBRARY_ROLE_NAMES", {"admin", "reviewer", "marketing", "hr", "compliance"})
+
+    response = search_handler.handler(
+        {
+            "routeKey": "POST /assets/policy",
+            "body": dumps(
+                {
+                    "campaign": "Annual report",
+                    "consent_status": "approved",
+                    "curator_tags": ["cardiology"],
+                    "expiration_date": "2026-12-31",
+                    "groups": ["marketing", "compliance"],
+                    "key": "headshot.jpg",
+                    "location": "Cardiology clinic",
+                    "owner_department": "Marketing",
+                    "review_status": "approved",
+                    "staff_names": ["Dr. Maya Chen"],
+                    "usage_rights": "public_release",
+                    "visibility": "restricted",
+                }
+            ),
+            "requestContext": {
+                "authorizer": {"jwt": {"claims": {"cognito:groups": "reviewer", "sub": "reviewer-1"}}}
+            },
+        },
+        None,
+    )
+    body = loads(response["body"])
+
+    assert response["statusCode"] == 200
+    assert body["review_status"] == "approved"
+    assert body["groups"] == ["marketing", "compliance"]
+    assert updated_items[0]["ExpressionAttributeValues"][":owner_department"] == {"S": "Marketing"}
+    assert updated_items[0]["ExpressionAttributeValues"][":usage_rights"] == {"S": "public_release"}
+
+
+def test_review_queue_requires_reviewer_and_returns_pending_assets(monkeypatch) -> None:
+    class FakeS3Client:
+        def generate_presigned_url(self, *_args, **_kwargs) -> str:
+            return "https://signed.example/pending.jpg"
+
+    class FakeDynamoDBClient:
+        def scan(self, **_kwargs) -> dict[str, object]:
+            return {
+                "Items": [
+                    {
+                        "asset_key": {"S": "pending.jpg"},
+                        "ai_description": {"S": "Pending hospital media asset."},
+                        "campaign": {"S": "Community event"},
+                        "consent_status": {"S": "missing"},
+                        "owner_department": {"S": "Marketing"},
+                        "review_status": {"S": "pending_review"},
+                        "scene_type": {"S": "event"},
+                        "usage_rights": {"S": "unknown"},
+                        "visibility": {"S": "library"},
+                    }
+                ]
+            }
+
+    monkeypatch.setattr(search_handler, "_s3_client", lambda: FakeS3Client())
+    monkeypatch.setattr(search_handler, "_dynamodb_client", lambda: FakeDynamoDBClient())
+    monkeypatch.setattr(search_handler, "ASSET_POLICY_TABLE_NAME", "asset-policy")
+    monkeypatch.setattr(search_handler, "PHOTO_BUCKET_NAME", "photos")
+
+    response = search_handler.handler(
+        {
+            "routeKey": "GET /assets/review",
+            "requestContext": {
+                "authorizer": {"jwt": {"claims": {"cognito:groups": "reviewer", "sub": "reviewer-1"}}}
+            },
+        },
+        None,
+    )
+    body = loads(response["body"])
+
+    assert response["statusCode"] == 200
+    assert body["results"][0]["key"] == "pending.jpg"
+    assert body["results"][0]["campaign"] == "Community event"
+
+
+def test_admin_users_requires_admin_and_invites_user(monkeypatch) -> None:
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    class FakeCognitoClient:
+        def admin_create_user(self, **kwargs: object) -> None:
+            calls.append(("create", kwargs))
+
+        def admin_add_user_to_group(self, **kwargs: object) -> None:
+            calls.append(("group", kwargs))
+
+    monkeypatch.setattr(search_handler, "_cognito_client", lambda: FakeCognitoClient())
+    monkeypatch.setattr(search_handler, "COGNITO_USER_POOL_ID", "pool")
+    monkeypatch.setattr(search_handler, "LIBRARY_ROLE_NAMES", {"admin", "reviewer", "marketing"})
+
+    response = search_handler.handler(
+        {
+            "routeKey": "POST /admin/users",
+            "body": dumps({"email": "reviewer@example.com", "groups": ["reviewer", "marketing"]}),
+            "requestContext": {"authorizer": {"jwt": {"claims": {"cognito:groups": "admin", "sub": "admin-1"}}}},
+        },
+        None,
+    )
+    body = loads(response["body"])
+
+    assert response["statusCode"] == 200
+    assert body["email"] == "reviewer@example.com"
+    assert calls[0][0] == "create"
+    assert [call[1]["GroupName"] for call in calls[1:]] == ["reviewer", "marketing"]
+
+
 def test_upload_presign_requires_enabled_upload_token(monkeypatch) -> None:
     monkeypatch.setattr(search_handler, "UPLOAD_TOKEN_SHA256", "")
 
@@ -371,8 +500,8 @@ def test_upload_presign_requires_enabled_upload_token(monkeypatch) -> None:
         None,
     )
 
-    assert response["statusCode"] == 403
-    assert loads(response["body"]) == {"error": "browser uploads are disabled for this deployment"}
+    assert response["statusCode"] == 401
+    assert loads(response["body"]) == {"error": "authorized uploader required"}
 
 
 def test_upload_presign_rejects_invalid_token(monkeypatch) -> None:
@@ -388,7 +517,7 @@ def test_upload_presign_rejects_invalid_token(monkeypatch) -> None:
     )
 
     assert response["statusCode"] == 401
-    assert loads(response["body"]) == {"error": "valid upload token required"}
+    assert loads(response["body"]) == {"error": "authorized uploader required"}
 
 
 def test_upload_presign_returns_signed_put_url(monkeypatch) -> None:

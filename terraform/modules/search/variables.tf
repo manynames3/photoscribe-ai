@@ -38,6 +38,11 @@ variable "cognito_issuer" {
   type        = string
 }
 
+variable "cognito_user_pool_id" {
+  description = "Cognito user pool ID used for admin user management."
+  type        = string
+}
+
 variable "embed_model_id" {
   description = "Titan embedding model ID."
   type        = string
@@ -61,6 +66,11 @@ variable "lambda_name" {
 variable "lambda_source_dir" {
   description = "Path to the Lambda source code directory."
   type        = string
+}
+
+variable "library_role_names" {
+  description = "Allowed Cognito groups for this media library."
+  type        = list(string)
 }
 
 variable "max_upload_bytes" {

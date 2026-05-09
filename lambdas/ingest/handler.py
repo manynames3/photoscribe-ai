@@ -97,14 +97,20 @@ def upsert_asset_policy(*, bucket: str, key: str, metadata: Any) -> None:
         ExpressionAttributeValues={
             ":allowed_groups": {"S": ",".join(DEFAULT_ALLOWED_GROUPS)},
             ":bucket_name": {"S": bucket},
+            ":campaign": {"S": ""},
+            ":consent_status": {"S": "missing"},
             ":created_at": {"S": now},
             ":description": {"S": metadata.description[:500]},
+            ":expiration_date": {"S": ""},
+            ":location": {"S": ""},
             ":mood": {"S": metadata.mood},
+            ":owner_department": {"S": ""},
             ":people_count": {"N": str(metadata.people_count)},
             ":review_status": {"S": DEFAULT_REVIEW_STATUS},
             ":scene_type": {"S": metadata.scene_type},
             ":s3_uri": {"S": f"s3://{bucket}/{key}"},
             ":updated_at": {"S": now},
+            ":usage_rights": {"S": "unknown"},
             ":visibility": {"S": DEFAULT_VISIBILITY},
         },
         Key={"asset_key": {"S": key}},
@@ -112,16 +118,23 @@ def upsert_asset_policy(*, bucket: str, key: str, metadata: Any) -> None:
         UpdateExpression=(
             "SET allowed_groups = if_not_exists(allowed_groups, :allowed_groups), "
             "bucket_name = :bucket_name, "
+            "campaign = if_not_exists(campaign, :campaign), "
+            "consent_status = if_not_exists(consent_status, :consent_status), "
             "created_at = if_not_exists(created_at, :created_at), "
             "ai_description = :description, "
+            "expiration_date = if_not_exists(expiration_date, :expiration_date), "
+            "#location = if_not_exists(#location, :location), "
             "mood = :mood, "
+            "owner_department = if_not_exists(owner_department, :owner_department), "
             "people_count = :people_count, "
             "review_status = if_not_exists(review_status, :review_status), "
             "scene_type = :scene_type, "
             "s3_uri = :s3_uri, "
             "updated_at = :updated_at, "
+            "usage_rights = if_not_exists(usage_rights, :usage_rights), "
             "visibility = if_not_exists(visibility, :visibility)"
         ),
+        ExpressionAttributeNames={"#location": "location"},
     )
 
 

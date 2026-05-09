@@ -1,6 +1,6 @@
 # Architecture
 
-PhotoScribe AI is a serverless semantic media search system for governed image libraries. The frontend is a static React application on Cloudflare Pages. The backend runs on AWS with S3 for private photo storage, Lambda for ingest and search, API Gateway for HTTP access, optional Cognito JWT authentication, Bedrock for image description and embeddings, S3 Vectors for vector search, and DynamoDB for asset policy and audit records.
+PhotoScribe AI is a serverless semantic media search system for governed image libraries. The frontend is a static React application on Cloudflare Pages. The backend runs on AWS with S3 for private photo storage, Lambda for ingest and search, API Gateway for HTTP access, Cognito JWT authentication, Bedrock for image description and embeddings, S3 Vectors for vector search, and DynamoDB for asset policy and audit records.
 
 ## Container Diagram
 
@@ -20,8 +20,8 @@ flowchart TB
     end
 
     subgraph aws["AWS us-east-1"]
-        cognito["Cognito User Pool<br/>Optional JWT auth + groups"]
-        api["API Gateway HTTP API<br/>GET /search"]
+        cognito["Cognito User Pool<br/>JWT auth + role groups"]
+        api["API Gateway HTTP API<br/>search, review, admin"]
         upload_api["API Gateway HTTP API<br/>POST /uploads/presign"]
         search["Search Lambda<br/>Python 3.12"]
         ingest["Ingest Lambda<br/>Python 3.12"]
@@ -39,8 +39,8 @@ flowchart TB
     person --> pages
     pages --> api
     pages --> upload_api
-    cognito -. "JWT authorizer when enabled" .-> api
-    cognito -. "JWT authorizer when enabled" .-> upload_api
+    cognito -. "JWT authorizer" .-> api
+    cognito -. "JWT authorizer" .-> upload_api
     api --> search
     upload_api --> search
     search --> bedrock
@@ -78,14 +78,15 @@ flowchart TB
 7. Bedrock Titan Text Embeddings v2 embeds the generated description into a 1024-dimensional vector.
 8. The ingest Lambda writes the vector and metadata to the S3 Vectors `photos` index.
 9. The ingest Lambda creates or updates a DynamoDB asset policy row for the S3 key, preserving existing human review decisions with `if_not_exists`.
-10. The Lambda writes structured log entries to CloudWatch.
+10. New assets default to `pending_review` so reviewers can assign department, consent, usage-rights, campaign, staff, location, visibility, and release metadata before broader library use.
+11. The Lambda writes structured log entries to CloudWatch.
 
 ### Search
 
 1. A user submits a natural-language query from the React UI.
 2. The UI calls `GET /search?q=<query>` on API Gateway.
-3. When `enable_api_auth = true`, API Gateway validates a Cognito JWT before invoking Lambda.
-4. The search Lambda extracts Cognito groups when present, or treats the request as an anonymous public-demo request.
+3. API Gateway validates a Cognito JWT before invoking Lambda.
+4. The search Lambda extracts Cognito groups for policy checks.
 5. The search Lambda embeds the query text with Titan Text Embeddings v2.
 6. The search Lambda queries S3 Vectors for nearest neighbors and optional metadata filters.
 7. For each match, the Lambda checks DynamoDB asset policy metadata before issuing a signed URL.
@@ -96,8 +97,8 @@ flowchart TB
 
 1. A user selects or drags JPEG, PNG, or WebP files into the React upload panel.
 2. The UI computes a SHA-256 content hash for each file and skips exact duplicates already selected in the current batch.
-3. The UI calls `POST /uploads/presign` with filename, content type, file size, checksum, and an owner upload token.
-4. The Lambda validates the token by hashing it and comparing it to `UPLOAD_TOKEN_SHA256`.
+3. The UI calls `POST /uploads/presign` with filename, content type, file size, checksum, and the signed-in user's Cognito JWT.
+4. API Gateway validates the JWT, and Lambda confirms the user belongs to a library role group.
 5. The Lambda maps the checksum to a deterministic `uploads/sha256/<prefix>/<checksum>.<ext>` object key.
 6. If that key already exists, the Lambda returns `duplicate: true` and no new S3 upload is performed.
 7. If the key is new, the Lambda returns a short-lived pre-signed S3 `PUT` URL and required upload headers.
@@ -113,8 +114,8 @@ flowchart TB
 - Terraform remote state is bootstrapped by `scripts/bootstrap-remote-state.sh`.
 - The Terraform modules are split by responsibility: storage, vectors, ingest, search, auth, governance, frontend, and observability.
 - AWS frontend hosting still exists as an optional Terraform module, but the active public site uses Cloudflare Pages.
-- The public portfolio deployment keeps `enable_api_auth = false`; private deployments can set `enable_api_auth = true` to require Cognito JWTs on `GET /search`.
-- Browser uploads stay disabled until `upload_token_sha256` is configured. This prevents anonymous public uploads from triggering storage and Bedrock costs.
+- The active deployment uses `enable_api_auth = true` so search, upload, review, curator, and admin API routes require Cognito JWTs.
+- Browser uploads require signed-in staff access. This prevents anonymous public uploads from triggering storage and Bedrock costs.
 - S3 upload events are buffered through SQS, and the Lambda event-source mapping caps concurrent ingest invokes so Bedrock indexing bursts cannot consume all Lambda capacity and starve search/upload requests.
 
 ## Semantic Search Rationale
@@ -125,10 +126,9 @@ A query like `doctor reviewing results` can match images described as `physician
 
 ## Key Constraints
 
-- The public demo search API is intentionally unauthenticated for recruiter review; uploaded demo photos should be treated as public-facing once indexed because search results return signed image URLs.
-- Browser uploads are owner-gated with a shared upload token hash for the portfolio deployment. A production deployment should replace this with full Cognito login, role checks, moderation, and review workflows.
-- Cognito/JWT auth is optional and controlled by Terraform. Enabling it requires a frontend login/token flow; the current UI can attach a token from `localStorage["photoscribe.authToken"]`.
-- New assets default to `approved` in the public demo. A private review queue should set `default_asset_review_status = "pending_review"`.
+- The portfolio deployment is now private-library oriented: users sign in with Cognito before searching or uploading.
+- Cognito groups drive role checks for `admin`, `reviewer`, `marketing`, `hr`, `compliance`, and `facilities`.
+- New assets default to `pending_review` and must be classified before broader library use.
 - Existing indexed assets may not have policy rows. Keep `missing_asset_policy_default = "allow"` during migration, then change it to `deny` after backfilling policy rows.
 - S3 Vectors is provisioned with the `awscc` provider because this repo uses Cloud Control coverage for vector bucket and index resources.
 - Image description is the primary variable cost. Nova Lite is the default cost-effective model, Nova Pro is an affordable quality upgrade, and Claude can be configured for high-performance review workflows when its higher cost is justified.

@@ -115,6 +115,19 @@ data "aws_iam_policy_document" "logs" {
     actions   = ["dynamodb:PutItem"]
     resources = [var.audit_log_table_arn]
   }
+
+  dynamic "statement" {
+    for_each = var.cognito_user_pool_id == "" ? [] : [1]
+
+    content {
+      actions = [
+        "cognito-idp:AdminAddUserToGroup",
+        "cognito-idp:AdminCreateUser",
+        "cognito-idp:AdminGetUser",
+      ]
+      resources = ["arn:${var.partition}:cognito-idp:${var.region}:${var.account_id}:userpool/${var.cognito_user_pool_id}"]
+    }
+  }
 }
 
 resource "aws_iam_role" "lambda" {
@@ -147,6 +160,8 @@ resource "aws_lambda_function" "this" {
       ASSET_POLICY_TABLE_NAME  = var.asset_policy_table_name
       AUDIT_LOG_RETENTION_DAYS = tostring(var.audit_log_retention_days)
       AUDIT_LOG_TABLE_NAME     = var.audit_log_table_name
+      COGNITO_USER_POOL_ID     = var.cognito_user_pool_id
+      LIBRARY_ROLE_NAMES       = join(",", var.library_role_names)
       MAX_UPLOAD_BYTES         = tostring(var.max_upload_bytes)
       MAX_VECTOR_DISTANCE      = tostring(var.max_vector_distance)
       MISSING_POLICY_DEFAULT   = var.missing_asset_policy_default
@@ -218,6 +233,30 @@ resource "aws_apigatewayv2_route" "asset_tags" {
   authorization_type = var.enable_api_auth ? "JWT" : "NONE"
   authorizer_id      = var.enable_api_auth ? aws_apigatewayv2_authorizer.cognito[0].id : null
   route_key          = "POST /assets/tags"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "asset_policy" {
+  api_id             = aws_apigatewayv2_api.http.id
+  authorization_type = var.enable_api_auth ? "JWT" : "NONE"
+  authorizer_id      = var.enable_api_auth ? aws_apigatewayv2_authorizer.cognito[0].id : null
+  route_key          = "POST /assets/policy"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "review_queue" {
+  api_id             = aws_apigatewayv2_api.http.id
+  authorization_type = var.enable_api_auth ? "JWT" : "NONE"
+  authorizer_id      = var.enable_api_auth ? aws_apigatewayv2_authorizer.cognito[0].id : null
+  route_key          = "GET /assets/review"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "admin_users" {
+  api_id             = aws_apigatewayv2_api.http.id
+  authorization_type = var.enable_api_auth ? "JWT" : "NONE"
+  authorizer_id      = var.enable_api_auth ? aws_apigatewayv2_authorizer.cognito[0].id : null
+  route_key          = "POST /admin/users"
   target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 

@@ -26,6 +26,8 @@ LOGGER.setLevel(logging.INFO)
 ASSET_POLICY_TABLE_NAME = os.environ.get("ASSET_POLICY_TABLE_NAME", "")
 AUDIT_LOG_TABLE_NAME = os.environ.get("AUDIT_LOG_TABLE_NAME", "")
 AUDIT_LOG_RETENTION_DAYS = int(os.environ.get("AUDIT_LOG_RETENTION_DAYS", "30"))
+COGNITO_USER_POOL_ID = os.environ.get("COGNITO_USER_POOL_ID", "")
+LIBRARY_ROLE_NAMES = {role.strip() for role in os.environ.get("LIBRARY_ROLE_NAMES", "").split(",") if role.strip()}
 MISSING_POLICY_DEFAULT = os.environ.get("MISSING_POLICY_DEFAULT", "allow").strip().lower()
 PHOTO_BUCKET_NAME = os.environ.get("PHOTO_BUCKET_NAME", "")
 SIGNED_URL_TTL_SECONDS = int(os.environ.get("SIGNED_URL_TTL_SECONDS", "900"))
@@ -35,6 +37,7 @@ MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_BYTES", str(15 * 1024 * 1024))
 MAX_VECTOR_DISTANCE = float(os.environ.get("MAX_VECTOR_DISTANCE", "0.8"))
 FILTER_KEYS = {"mood", "scene_type", "lighting", "time_of_day", "people_count", "date_added", "aspect_ratio"}
 PRIVILEGED_GROUPS = {"admin", "reviewer"}
+ADMIN_GROUPS = {"admin"}
 ALLOWED_UPLOAD_TYPES = {
     "image/jpeg": ".jpg",
     "image/png": ".png",
@@ -44,6 +47,11 @@ SAFE_FILENAME_PATTERN = re.compile(r"[^A-Za-z0-9._-]+")
 CHECKSUM_SHA256_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 MAX_CURATOR_VALUES = 20
 MAX_CURATOR_VALUE_LENGTH = 80
+MAX_POLICY_VALUE_LENGTH = 120
+REVIEW_STATUSES = {"approved", "pending_review", "rejected"}
+VISIBILITY_VALUES = {"library", "restricted"}
+CONSENT_STATUSES = {"approved", "missing", "not_required", "restricted", "expired"}
+USAGE_RIGHTS = {"internal_only", "public_release", "campaign_limited", "do_not_use", "unknown"}
 
 
 def _s3_client() -> Any:
@@ -52,6 +60,10 @@ def _s3_client() -> Any:
 
 def _dynamodb_client() -> Any:
     return boto3.client("dynamodb")
+
+
+def _cognito_client() -> Any:
+    return boto3.client("cognito-idp")
 
 
 def _response(status_code: int, payload: dict[str, Any]) -> dict[str, Any]:
@@ -94,6 +106,27 @@ def _is_asset_tags_request(event: dict[str, Any]) -> bool:
     method = event.get("requestContext", {}).get("http", {}).get("method")
     raw_path = event.get("rawPath", "")
     return route_key == "POST /assets/tags" or (method == "POST" and raw_path.endswith("/assets/tags"))
+
+
+def _is_asset_policy_request(event: dict[str, Any]) -> bool:
+    route_key = event.get("routeKey")
+    method = event.get("requestContext", {}).get("http", {}).get("method")
+    raw_path = event.get("rawPath", "")
+    return route_key == "POST /assets/policy" or (method == "POST" and raw_path.endswith("/assets/policy"))
+
+
+def _is_review_queue_request(event: dict[str, Any]) -> bool:
+    route_key = event.get("routeKey")
+    method = event.get("requestContext", {}).get("http", {}).get("method")
+    raw_path = event.get("rawPath", "")
+    return route_key == "GET /assets/review" or (method == "GET" and raw_path.endswith("/assets/review"))
+
+
+def _is_admin_users_request(event: dict[str, Any]) -> bool:
+    route_key = event.get("routeKey")
+    method = event.get("requestContext", {}).get("http", {}).get("method")
+    raw_path = event.get("rawPath", "")
+    return route_key == "POST /admin/users" or (method == "POST" and raw_path.endswith("/admin/users"))
 
 
 def parse_filter(raw_filter: str | None) -> dict[str, Any] | None:
@@ -200,8 +233,52 @@ def _curator_values(payload: dict[str, Any], key: str) -> list[str]:
     return cleaned_values
 
 
+def _policy_string(payload: dict[str, Any], key: str, allowed_values: set[str] | None = None) -> str:
+    value = str(payload.get(key, "") or "").strip()
+    if not value:
+        return ""
+
+    normalized = re.sub(r"\s+", " ", value)
+    if len(normalized) > MAX_POLICY_VALUE_LENGTH:
+        raise ValueError(f"{key} must be {MAX_POLICY_VALUE_LENGTH} characters or fewer")
+
+    if allowed_values is not None and normalized not in allowed_values:
+        raise ValueError(f"{key} must be one of: {', '.join(sorted(allowed_values))}")
+
+    return normalized
+
+
+def _policy_date(payload: dict[str, Any], key: str) -> str:
+    value = str(payload.get(key, "") or "").strip()
+    if not value:
+        return ""
+
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        raise ValueError(f"{key} must use YYYY-MM-DD format")
+
+    return value
+
+
+def _role_values(payload: dict[str, Any]) -> list[str]:
+    roles = _curator_values(payload, "groups")
+    allowed_roles = LIBRARY_ROLE_NAMES or {"admin", "reviewer", "marketing", "hr", "compliance", "facilities"}
+    unsupported = sorted(set(roles) - allowed_roles)
+    if unsupported:
+        raise ValueError(f"unsupported groups: {', '.join(unsupported)}")
+
+    return roles
+
+
 def _has_curator_access(event: dict[str, Any], security_context: dict[str, Any]) -> bool:
     return bool(set(security_context["groups"]) & PRIVILEGED_GROUPS) or _has_valid_upload_token(event)
+
+
+def _has_upload_access(event: dict[str, Any], security_context: dict[str, Any]) -> bool:
+    return bool(set(security_context["groups"]) & (LIBRARY_ROLE_NAMES or PRIVILEGED_GROUPS)) or _has_valid_upload_token(event)
+
+
+def _has_admin_access(security_context: dict[str, Any]) -> bool:
+    return bool(set(security_context["groups"]) & ADMIN_GROUPS)
 
 
 def _audit_asset_tags(
@@ -234,11 +311,9 @@ def _audit_asset_tags(
 
 
 def _handle_upload_presign(event: dict[str, Any]) -> dict[str, Any]:
-    if not UPLOAD_TOKEN_SHA256:
-        return _response(403, {"error": "browser uploads are disabled for this deployment"})
-
-    if not _has_valid_upload_token(event):
-        return _response(401, {"error": "valid upload token required"})
+    security_context = _security_context(event)
+    if not _has_upload_access(event, security_context):
+        return _response(401, {"error": "authorized uploader required"})
 
     try:
         payload = _json_body(event)
@@ -361,6 +436,167 @@ def _handle_asset_tags(event: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _handle_asset_policy(event: dict[str, Any]) -> dict[str, Any]:
+    if not ASSET_POLICY_TABLE_NAME:
+        return _response(403, {"error": "asset policy updates are disabled for this deployment"})
+
+    security_context = _security_context(event)
+    if not _has_curator_access(event, security_context):
+        return _response(403, {"error": "admin or reviewer access required"})
+
+    try:
+        payload = _json_body(event)
+        asset_key = _safe_asset_key(str(payload.get("key", "")))
+        curator_tags = _curator_values(payload, "curator_tags")
+        staff_names = _curator_values(payload, "staff_names")
+        allowed_groups = _role_values(payload) if "groups" in payload else []
+        campaign = _policy_string(payload, "campaign")
+        consent_status = _policy_string(payload, "consent_status", CONSENT_STATUSES)
+        expiration_date = _policy_date(payload, "expiration_date")
+        location = _policy_string(payload, "location")
+        owner_department = _policy_string(payload, "owner_department")
+        review_status = _policy_string(payload, "review_status", REVIEW_STATUSES)
+        usage_rights = _policy_string(payload, "usage_rights", USAGE_RIGHTS)
+        visibility = _policy_string(payload, "visibility", VISIBILITY_VALUES)
+    except (TypeError, ValueError) as error:
+        return _response(400, {"error": str(error)})
+
+    now = datetime.now(UTC).isoformat()
+    expression_values: dict[str, dict[str, str]] = {
+        ":campaign": {"S": campaign},
+        ":consent_status": {"S": consent_status},
+        ":curator_tags": {"S": ",".join(curator_tags)},
+        ":curator_tags_lc": {"S": ",".join(tag.lower() for tag in curator_tags)},
+        ":expiration_date": {"S": expiration_date},
+        ":location": {"S": location},
+        ":owner_department": {"S": owner_department},
+        ":review_status": {"S": review_status},
+        ":staff_names": {"S": ",".join(staff_names)},
+        ":staff_names_lc": {"S": ",".join(name.lower() for name in staff_names)},
+        ":updated_at": {"S": now},
+        ":updated_by": {"S": security_context["principal_id"]},
+        ":usage_rights": {"S": usage_rights},
+        ":visibility": {"S": visibility},
+    }
+    update_parts = [
+        "campaign = :campaign",
+        "consent_status = :consent_status",
+        "curator_tags = :curator_tags",
+        "curator_tags_lc = :curator_tags_lc",
+        "expiration_date = :expiration_date",
+        "#location = :location",
+        "owner_department = :owner_department",
+        "review_status = :review_status",
+        "staff_names = :staff_names",
+        "staff_names_lc = :staff_names_lc",
+        "updated_at = :updated_at",
+        "updated_by = :updated_by",
+        "usage_rights = :usage_rights",
+        "visibility = :visibility",
+    ]
+    if allowed_groups:
+        expression_values[":allowed_groups"] = {"S": ",".join(allowed_groups)}
+        update_parts.append("allowed_groups = :allowed_groups")
+
+    _dynamodb_client().update_item(
+        ExpressionAttributeNames={"#location": "location"},
+        ExpressionAttributeValues=expression_values,
+        Key={"asset_key": {"S": asset_key}},
+        TableName=ASSET_POLICY_TABLE_NAME,
+        UpdateExpression="SET " + ", ".join(update_parts),
+    )
+    _audit_asset_tags(
+        asset_key=asset_key,
+        curator_tags=curator_tags,
+        security_context=security_context,
+        staff_names=staff_names,
+    )
+
+    return _response(
+        200,
+        {
+            "campaign": campaign,
+            "consent_status": consent_status,
+            "curator_tags": curator_tags,
+            "expiration_date": expiration_date,
+            "groups": allowed_groups,
+            "key": asset_key,
+            "location": location,
+            "owner_department": owner_department,
+            "review_status": review_status,
+            "staff_names": staff_names,
+            "usage_rights": usage_rights,
+            "visibility": visibility,
+        },
+    )
+
+
+def _handle_review_queue(event: dict[str, Any]) -> dict[str, Any]:
+    if not ASSET_POLICY_TABLE_NAME:
+        return _response(403, {"error": "review queue is disabled for this deployment"})
+
+    security_context = _security_context(event)
+    groups = set(security_context["groups"])
+    if not groups & PRIVILEGED_GROUPS:
+        return _response(403, {"error": "admin or reviewer access required"})
+
+    params = event.get("queryStringParameters") or {}
+    limit = min(max(int(params.get("limit", 24)), 1), 50)
+    response = _dynamodb_client().scan(
+        ExpressionAttributeValues={":status": {"S": "pending_review"}},
+        FilterExpression="review_status = :status",
+        Limit=limit,
+        TableName=ASSET_POLICY_TABLE_NAME,
+    )
+
+    results: list[dict[str, Any]] = []
+    for item in response.get("Items", []):
+        policy_metadata = _policy_metadata(item)
+        results.append(_policy_item_to_result(item, policy_metadata))
+
+    return _response(200, {"message": "review queue loaded", "results": results})
+
+
+def _handle_admin_users(event: dict[str, Any]) -> dict[str, Any]:
+    if not COGNITO_USER_POOL_ID:
+        return _response(403, {"error": "admin user management is disabled for this deployment"})
+
+    security_context = _security_context(event)
+    if not _has_admin_access(security_context):
+        return _response(403, {"error": "admin access required"})
+
+    try:
+        payload = _json_body(event)
+        email = str(payload.get("email", "")).strip().lower()
+        groups = _role_values(payload)
+    except (TypeError, ValueError) as error:
+        return _response(400, {"error": str(error)})
+
+    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        return _response(400, {"error": "email must be a valid email address"})
+
+    client = _cognito_client()
+    try:
+        client.admin_create_user(
+            DesiredDeliveryMediums=["EMAIL"],
+            UserAttributes=[
+                {"Name": "email", "Value": email},
+                {"Name": "email_verified", "Value": "true"},
+            ],
+            UserPoolId=COGNITO_USER_POOL_ID,
+            Username=email,
+        )
+    except ClientError as error:
+        code = str(error.response.get("Error", {}).get("Code", ""))
+        if code != "UsernameExistsException":
+            raise
+
+    for group in groups:
+        client.admin_add_user_to_group(GroupName=group, UserPoolId=COGNITO_USER_POOL_ID, Username=email)
+
+    return _response(200, {"email": email, "groups": groups, "message": "user invited"})
+
+
 def _extract_claims(event: dict[str, Any]) -> dict[str, Any]:
     authorizer = event.get("requestContext", {}).get("authorizer", {})
     jwt = authorizer.get("jwt", {})
@@ -454,16 +690,28 @@ def _get_asset_policy(s3_key: str) -> dict[str, Any] | None:
 def _policy_metadata(policy: dict[str, Any] | None) -> dict[str, Any]:
     if policy is None:
         return {
+            "campaign": "",
+            "consent_status": "missing",
             "curator_tags": [],
+            "expiration_date": "",
+            "location": "",
+            "owner_department": "",
             "review_status": "missing_policy",
             "staff_names": [],
+            "usage_rights": "unknown",
             "visibility": "library",
         }
 
     return {
+        "campaign": _ddb_string(policy.get("campaign")),
+        "consent_status": _ddb_string(policy.get("consent_status"), "missing"),
         "curator_tags": _csv_metadata(_ddb_string(policy.get("curator_tags"))),
+        "expiration_date": _ddb_string(policy.get("expiration_date")),
+        "location": _ddb_string(policy.get("location")),
+        "owner_department": _ddb_string(policy.get("owner_department")),
         "review_status": _ddb_string(policy.get("review_status"), "approved"),
         "staff_names": _csv_metadata(_ddb_string(policy.get("staff_names"))),
+        "usage_rights": _ddb_string(policy.get("usage_rights"), "unknown"),
         "visibility": _ddb_string(policy.get("visibility"), "library"),
     }
 
@@ -518,9 +766,15 @@ def enrich_with_signed_url(match: Match, policy_metadata: dict[str, Any] | None 
         "thumbnail_url": signed_url,
         "image_url": signed_url,
         "s3_key": s3_key,
+        "campaign": (policy_metadata or {}).get("campaign", ""),
+        "consent_status": (policy_metadata or {}).get("consent_status", "missing"),
         "curator_tags": (policy_metadata or {}).get("curator_tags", []),
+        "expiration_date": (policy_metadata or {}).get("expiration_date", ""),
+        "location": (policy_metadata or {}).get("location", ""),
+        "owner_department": (policy_metadata or {}).get("owner_department", ""),
         "review_status": (policy_metadata or {}).get("review_status", "unmanaged"),
         "staff_names": (policy_metadata or {}).get("staff_names", []),
+        "usage_rights": (policy_metadata or {}).get("usage_rights", "unknown"),
         "visibility": (policy_metadata or {}).get("visibility", "library"),
     }
 
@@ -549,9 +803,15 @@ def _policy_item_to_result(item: dict[str, Any], policy_metadata: dict[str, Any]
         "thumbnail_url": signed_url,
         "image_url": signed_url,
         "s3_key": asset_key,
+        "campaign": policy_metadata.get("campaign", ""),
+        "consent_status": policy_metadata.get("consent_status", "missing"),
         "curator_tags": policy_metadata.get("curator_tags", []),
+        "expiration_date": policy_metadata.get("expiration_date", ""),
+        "location": policy_metadata.get("location", ""),
+        "owner_department": policy_metadata.get("owner_department", ""),
         "review_status": policy_metadata.get("review_status", "unmanaged"),
         "staff_names": policy_metadata.get("staff_names", []),
+        "usage_rights": policy_metadata.get("usage_rights", "unknown"),
         "visibility": policy_metadata.get("visibility", "library"),
         "match_type": "curator_tag",
     }
@@ -628,6 +888,12 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         return _handle_upload_presign(event)
     if _is_asset_tags_request(event):
         return _handle_asset_tags(event)
+    if _is_asset_policy_request(event):
+        return _handle_asset_policy(event)
+    if _is_review_queue_request(event):
+        return _handle_review_queue(event)
+    if _is_admin_users_request(event):
+        return _handle_admin_users(event)
 
     params = event.get("queryStringParameters") or {}
     query_text = (params.get("q") or "").strip()

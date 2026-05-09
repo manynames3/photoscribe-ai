@@ -148,11 +148,13 @@ module "search" {
   audit_log_table_name         = module.governance.audit_log_table_name
   cognito_audience             = local.cognito_audience
   cognito_issuer               = local.cognito_issuer
+  cognito_user_pool_id         = var.enable_api_auth ? module.auth[0].user_pool_id : ""
   embed_model_id               = var.embed_model_id
   enable_api_auth              = var.enable_api_auth
   frontend_origins             = local.frontend_origins
   lambda_name                  = local.search_lambda_name
   lambda_source_dir            = "${path.root}/../lambdas/search"
+  library_role_names           = var.library_role_names
   max_upload_bytes             = var.max_upload_bytes
   max_vector_distance          = var.max_vector_distance
   missing_asset_policy_default = var.missing_asset_policy_default

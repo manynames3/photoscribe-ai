@@ -23,7 +23,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -74,6 +75,8 @@ img {
 }
 
 .hero-panel,
+.login-panel,
+.ops-panel,
 .upload-panel,
 .sidebar-panel,
 .results-panel {
@@ -296,6 +299,60 @@ img {
   grid-template-columns: minmax(260px, 1fr) minmax(260px, 0.9fr);
   margin-top: 20px;
   padding: 24px;
+}
+
+.login-panel,
+.ops-panel {
+  align-items: start;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(320px, 1fr);
+  margin-top: 20px;
+  padding: 24px;
+}
+
+.login-panel h2,
+.ops-panel h2 {
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+  font-size: clamp(1.5rem, 2.4vw, 2.2rem);
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin: 0;
+}
+
+.login-panel p,
+.ops-panel p {
+  color: #655241;
+  margin: 10px 0 0;
+}
+
+.login-form {
+  display: grid;
+  gap: 12px;
+}
+
+.login-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.login-form label span,
+.curator-field-label {
+  color: #7a5f45;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.login-form input,
+.curator-panel select {
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(122, 95, 69, 0.16);
+  border-radius: 14px;
+  color: #241a12;
+  min-width: 0;
+  padding: 12px 13px;
 }
 
 .upload-copy h2 {
@@ -836,10 +893,55 @@ img {
   padding: 12px 13px;
 }
 
+.curator-field-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .curator-status {
   color: #425450;
   font-size: 0.88rem;
   margin: 0;
+}
+
+.review-list {
+  display: grid;
+  gap: 10px;
+  grid-column: 1 / -1;
+}
+
+.review-row {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(122, 95, 69, 0.14);
+  border-radius: 18px;
+  color: inherit;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 72px minmax(0, 1fr);
+  padding: 10px;
+  text-align: left;
+}
+
+.review-row img {
+  aspect-ratio: 1;
+  border-radius: 14px;
+  object-fit: cover;
+  width: 72px;
+}
+
+.review-row strong,
+.review-row small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-row small {
+  color: #7a6654;
+  margin-top: 4px;
 }
 
 .site-footer {
@@ -876,6 +978,11 @@ img {
   }
 
   .upload-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .login-panel,
+  .ops-panel {
     grid-template-columns: 1fr;
   }
 
@@ -932,6 +1039,10 @@ img {
   }
 
   .metadata-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .curator-field-grid {
     grid-template-columns: 1fr;
   }
 }

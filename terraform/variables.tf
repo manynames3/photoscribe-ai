@@ -50,7 +50,7 @@ variable "embed_model_id" {
 }
 
 variable "enable_api_auth" {
-  description = "Whether API Gateway requires Cognito JWT authentication for the search API."
+  description = "Whether API Gateway requires Cognito JWT authentication for the asset API."
   type        = bool
   default     = false
 }
@@ -58,7 +58,7 @@ variable "enable_api_auth" {
 variable "library_role_names" {
   description = "Role names created as Cognito groups and used by Lambda policy checks."
   type        = list(string)
-  default     = ["admin", "reviewer", "employee"]
+  default     = ["admin", "reviewer", "marketing", "hr", "compliance", "facilities"]
 }
 
 variable "default_asset_review_status" {
@@ -86,7 +86,7 @@ variable "default_asset_visibility" {
 variable "default_asset_allowed_groups" {
   description = "Groups allowed to access assets when visibility is restricted."
   type        = list(string)
-  default     = ["admin", "reviewer", "employee"]
+  default     = ["admin", "reviewer", "marketing", "hr", "compliance", "facilities"]
 }
 
 variable "missing_asset_policy_default" {

@@ -7,7 +7,6 @@ type UploadPanelProps = {
   onUploaded?: (uploadedCount: number) => void;
 };
 
-const TOKEN_STORAGE_KEY = "photoscribe.uploadToken";
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 function formatBytes(bytes: number) {
@@ -56,7 +55,6 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [items, setItems] = useState<UploadQueueItem[]>([]);
-  const [token, setToken] = useState(() => window.localStorage.getItem(TOKEN_STORAGE_KEY) ?? "");
 
   function updateItem(id: string, patch: Partial<UploadQueueItem>) {
     setItems((currentItems) => currentItems.map((item) => (item.id === id ? { ...item, ...patch } : item)));
@@ -68,19 +66,6 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
   }
 
   async function processUploads() {
-    const uploadToken = token.trim();
-    if (!uploadToken) {
-      setItems((currentItems) =>
-        currentItems.map((item) => ({
-          ...item,
-          error: item.status === "ready" ? "Enter the owner upload token first." : item.error,
-          status: item.status === "ready" ? "error" : item.status,
-        })),
-      );
-      return;
-    }
-
-    window.localStorage.setItem(TOKEN_STORAGE_KEY, uploadToken);
     setIsUploading(true);
     let uploadedCount = 0;
     const seenChecksums = new Set(
@@ -116,7 +101,7 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
         reservedChecksum = true;
         updateItem(item.id, { progress: 2, status: "uploading" });
 
-        const result = await uploadPhoto(item.file, uploadToken, checksumSha256, (progress) => {
+        const result = await uploadPhoto(item.file, checksumSha256, (progress) => {
           updateItem(item.id, { progress });
         });
 
@@ -201,14 +186,8 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
       </div>
 
       <label className="upload-token">
-        <span>Department upload token</span>
-        <input
-          autoComplete="off"
-          onChange={(event) => setToken(event.target.value)}
-          placeholder="Paste authorized intake token"
-          type="password"
-          value={token}
-        />
+        <span>Access control</span>
+        <input disabled value="Signed-in staff upload via Cognito" />
       </label>
 
       <div className="upload-actions">

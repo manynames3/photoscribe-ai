@@ -25,9 +25,9 @@ What I built:
 - an AWS ingest pipeline that reacts to S3 uploads and creates AI-generated photo metadata
 - a vector search backend using Bedrock embeddings and S3 Vectors
 - an HTTP search API backed by AWS Lambda and API Gateway
-- a responsive React interface with metadata filters, browser uploads, and signed image previews
-- optional Cognito JWT authentication for private-library deployments
-- DynamoDB asset policy and audit tables for review status, object-level visibility, and search audit records
+- a responsive React interface with Cognito login, metadata filters, browser uploads, review queue, and signed image previews
+- Cognito JWT authentication with admin, reviewer, marketing, HR, compliance, and facilities role groups
+- DynamoDB asset policy and audit tables for review status, object-level visibility, curator tags, usage rights, consent status, and search audit records
 - Terraform modules for storage, vectors, Lambdas, API Gateway, auth, governance, observability, and optional AWS frontend hosting
 - GitHub Actions workflows for Cloudflare Pages deployment, Lambda tests, and Terraform planning
 
@@ -73,9 +73,9 @@ For the PhotoScribe demo asset workflow, the companion tool reduced multi-megaby
 - **Serverless runtime model:** S3 upload events trigger an ingest Lambda; search requests go through API Gateway to a separate query Lambda.
 - **Semantic search:** Photo descriptions and user queries are embedded into the same 1024-dimensional vector space before nearest-neighbor search.
 - **Least-privilege IAM:** Each Lambda has its own IAM role scoped to the Bedrock, S3, S3 Vectors, and CloudWatch resources it needs.
-- **Private-library controls:** Terraform can enable Cognito JWT auth on `GET /search`; Lambda enforces DynamoDB asset policies before issuing signed image URLs.
-- **Audit and review workflow:** Ingest creates asset policy rows with review status and visibility; search writes audit events with result counts and policy-filtered counts.
-- **Safe browser uploads:** The UI hashes files client-side, skips exact duplicates, requests owner-gated pre-signed S3 PUT URLs, uploads directly to the private bucket, and lets the ingest pipeline index new assets.
+- **Private-library controls:** Cognito JWT auth protects search, upload, review, and admin routes; Lambda enforces DynamoDB asset policies before issuing signed image URLs.
+- **Audit and review workflow:** Ingest creates pending-review asset policy rows; reviewers classify owner department, usage rights, consent status, expiration, campaign, staff names, location, visibility, and release status.
+- **Safe browser uploads:** The UI hashes files client-side, skips exact duplicates, requests authenticated pre-signed S3 PUT URLs, uploads directly to the private bucket, and sends new assets through the review queue.
 - **Burst protection:** S3 events flow through SQS with capped Lambda event-source concurrency so AI indexing cannot starve interactive API requests during bulk uploads.
 - **Cost-aware architecture:** S3 Vectors avoids always-on vector infrastructure for a low-volume portfolio workload.
 - **Infrastructure as code:** Terraform defines AWS storage, vector, compute, API, observability, and optional frontend hosting resources.
@@ -93,7 +93,7 @@ flowchart LR
     user["User"] --> ui["React UI<br/>Cloudflare Pages"]
     ui --> api["API Gateway<br/>GET /search"]
     api --> search["Search Lambda<br/>Python 3.12"]
-    auth["Cognito<br/>optional JWT auth"] --> api
+    auth["Cognito<br/>JWT auth + role groups"] --> api
     search --> embed["Bedrock<br/>Titan Embeddings"]
     search --> vectors["S3 Vectors<br/>photos index"]
     search --> photos["S3 Photo Bucket<br/>pre-signed URLs"]
@@ -169,7 +169,7 @@ Frontend deployment:
 - GitHub Actions workflow: [.github/workflows/cloudflare-pages.yml](.github/workflows/cloudflare-pages.yml)
 - Build command: `npm ci && npm run build`
 - Deploy command: `wrangler pages deploy frontend/dist`
-- Required GitHub variables: `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_PAGES_PROJECT_NAME`, `VITE_API_URL`
+- Required GitHub variables: `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_PAGES_PROJECT_NAME`, `VITE_API_URL`, `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`
 - Required GitHub secret: `CLOUDFLARE_API_TOKEN`
 
 Backend deployment:
@@ -192,24 +192,21 @@ Useful Terraform outputs:
 - `audit_log_table_name`
 - `cognito_user_pool_id` when `enable_api_auth = true`
 
-Enable browser uploads:
+Create the first admin after Terraform creates Cognito:
 
 ```bash
-UPLOAD_TOKEN="choose-a-long-random-owner-token"
-UPLOAD_TOKEN_SHA256="$(printf '%s' "$UPLOAD_TOKEN" | shasum -a 256 | awk '{print $1}')"
+aws cognito-idp admin-create-user \
+  --user-pool-id "$(terraform -chdir=terraform output -raw cognito_user_pool_id)" \
+  --username admin@example.com \
+  --user-attributes Name=email,Value=admin@example.com Name=email_verified,Value=true
 
-terraform plan \
-  -var-file=envs/dev.tfvars \
-  -var-file=envs/dev.cloudflare.tfvars \
-  -var="upload_token_sha256=$UPLOAD_TOKEN_SHA256"
-
-terraform apply \
-  -var-file=envs/dev.tfvars \
-  -var-file=envs/dev.cloudflare.tfvars \
-  -var="upload_token_sha256=$UPLOAD_TOKEN_SHA256"
+aws cognito-idp admin-add-user-to-group \
+  --user-pool-id "$(terraform -chdir=terraform output -raw cognito_user_pool_id)" \
+  --username admin@example.com \
+  --group-name admin
 ```
 
-After deploy, paste the raw `UPLOAD_TOKEN` into the frontend upload form. Only the token hash should be stored in Terraform variables; the raw token should not be committed. Browser uploads use SHA-256 content hashes for deterministic S3 keys, so exact duplicate files are skipped before another S3 PUT or Bedrock ingest is triggered.
+The React login screen handles the first-login permanent password challenge for admin-created users. Browser uploads use SHA-256 content hashes for deterministic S3 keys, so exact duplicate files are skipped before another S3 PUT or Bedrock ingest is triggered.
 
 To seed photos after deploy:
 
@@ -229,10 +226,11 @@ Automated checks available in the repo:
 
 Manual smoke test:
 
-1. Upload a JPEG to the photo bucket.
-2. Confirm the ingest Lambda logs an `indexed` entry in CloudWatch.
-3. Call `GET /search?q=<query>` on the API Gateway URL.
-4. Open the Cloudflare Pages frontend and confirm results render with signed image URLs.
+1. Sign in with a Cognito user assigned to `admin` or `reviewer`.
+2. Upload a JPEG from the frontend.
+3. Confirm the ingest Lambda logs an `indexed` entry in CloudWatch.
+4. Load the review queue and approve or restrict the asset.
+5. Search for the asset by semantic query, staff name, or curator tag.
 
 ## Security And Privacy
 
@@ -240,15 +238,15 @@ Manual smoke test:
 - Search results return short-lived pre-signed S3 URLs instead of public bucket objects.
 - API Gateway CORS is configured for known frontend origins.
 - Lambda IAM policies are scoped to the resources used by each function.
-- Optional Cognito JWT auth can be enabled with `enable_api_auth = true`.
+- Cognito JWT auth protects search, upload, review, curator, and admin API routes.
 - Search Lambda checks DynamoDB asset policy rows before returning signed URLs.
-- Browser uploads require an owner upload token, skip exact duplicates by SHA-256 hash, and return pre-signed S3 PUT URLs instead of exposing AWS credentials.
+- Browser uploads require signed-in staff access, skip exact duplicates by SHA-256 hash, and return pre-signed S3 PUT URLs instead of exposing AWS credentials.
 - Search audit records are written to DynamoDB with TTL-based retention.
 - GitHub Actions uses secrets for deployment credentials.
 - CloudWatch log groups use retention policies.
 - A development billing alarm is provisioned through Terraform.
 
-Current privacy limitation: the public portfolio demo keeps `enable_api_auth = false`, so demo photos should be treated as public-facing content once indexed. Browser uploads are disabled unless `upload_token_sha256` is configured. A private deployment should enable Cognito auth, set `default_asset_review_status = "pending_review"` if human approval is required, and set `missing_asset_policy_default = "deny"` after existing assets have policy rows.
+Current privacy limitation: existing assets indexed before the review workflow may need backfilled policy fields before setting `missing_asset_policy_default = "deny"`. Newly uploaded assets enter `pending_review` by default.
 
 ## Cost Model
 
@@ -256,9 +254,8 @@ The architecture is designed for low-volume portfolio usage. The main cost drive
 
 ## Limitations
 
-- The public demo leaves Cognito authentication disabled to keep the portfolio site easy to view.
 - Search returns signed URLs for the original uploaded objects; a thumbnail generation pipeline is future work.
-- The review workflow is policy-table based; a full admin console for approving/rejecting assets is future work.
+- The review workflow is policy-table based and demo-scale; production would add stronger moderation, legal hold workflows, and enterprise SSO.
 - The Terraform repo still includes optional AWS S3 + CloudFront frontend hosting modules, but the active public frontend is Cloudflare Pages.
 - The Cloudflare Pages project is a direct-upload project, not Cloudflare Git integration.
 - The vector index is optimized for low-volume demo workloads, not multi-tenant enterprise photo libraries.
@@ -275,7 +272,7 @@ The architecture is designed for low-volume portfolio usage. The main cost drive
 
 ## Future Work
 
-- Build an admin/reviewer UI for approving, rejecting, and restricting assets.
+- Add enterprise SSO/SAML and richer user lifecycle workflows.
 - Add automated moderation with Amazon Rekognition or a Bedrock guardrail workflow before human review.
 - Generate and serve responsive thumbnails.
 - Add a re-indexing workflow for prompt/model changes.

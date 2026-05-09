@@ -1,4 +1,12 @@
-import type { AssetTagsUpdate, PhotoResult, SearchFilters, SearchResponse, UploadResult } from "./types";
+import type {
+  AdminUserInvite,
+  AssetPolicyUpdate,
+  AssetTagsUpdate,
+  PhotoResult,
+  SearchFilters,
+  SearchResponse,
+  UploadResult,
+} from "./types";
 
 const PREVIEW_RESULTS: PhotoResult[] = [
   {
@@ -77,8 +85,11 @@ const PREVIEW_RESULTS: PhotoResult[] = [
 
 type ApiPhotoResult = Partial<{
   aspect_ratio: string;
+  campaign: string;
   colors: string[];
+  consent_status: string;
   curator_tags: string[];
+  expiration_date: string;
   key: string;
   description: string;
   alt_text: string;
@@ -89,13 +100,16 @@ type ApiPhotoResult = Partial<{
   time_of_day: string;
   thumbnail_url: string;
   image_url: string;
+  location: string;
   distance: number;
   objects_detected: string[];
+  owner_department: string;
   people_count: number;
   s3_key: string;
   review_status: string;
   staff_names: string[];
   subjects: string[];
+  usage_rights: string;
   visibility: string;
 }>;
 
@@ -175,12 +189,17 @@ function normalizeApiResults(results: unknown[]): PhotoResult[] {
       altText: item.alt_text ?? "Search result image.",
       seoCaption: item.seo_caption ?? "",
       aspectRatio: item.aspect_ratio,
+      campaign: item.campaign,
+      consentStatus: item.consent_status,
       curatorTags: item.curator_tags,
       dominantColors: item.colors,
       mood: item.mood ?? "neutral",
       sceneType: item.scene_type ?? "other",
       lighting: item.lighting ?? "other",
+      expirationDate: item.expiration_date,
+      location: item.location,
       objectsDetected: item.objects_detected,
+      ownerDepartment: item.owner_department,
       peopleCount: item.people_count,
       reviewStatus: item.review_status,
       staffNames: item.staff_names,
@@ -191,6 +210,7 @@ function normalizeApiResults(results: unknown[]): PhotoResult[] {
       distance: item.distance,
       s3Key: item.s3_key,
       source: "api",
+      usageRights: item.usage_rights,
       visibility: item.visibility,
     };
   });
@@ -208,6 +228,13 @@ function apiBaseUrl() {
 function authHeaders(): Record<string, string> {
   const authToken = window.localStorage.getItem("photoscribe.authToken")?.trim();
   return authToken ? { Authorization: `Bearer ${authToken}` } : {};
+}
+
+function jsonAuthHeaders(): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    ...authHeaders(),
+  };
 }
 
 function curatorHeaders(token: string): Record<string, string> {
@@ -319,6 +346,100 @@ export async function updateAssetTags(
   };
 }
 
+export async function getReviewQueue(): Promise<PhotoResult[]> {
+  const baseUrl = apiBaseUrl();
+  if (!baseUrl) {
+    return [];
+  }
+
+  const response = await fetch(`${baseUrl}/assets/review`, {
+    headers: authHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error(`Review queue request failed with status ${response.status}.`);
+  }
+
+  const payload = (await response.json()) as { results?: unknown[] };
+  return normalizeApiResults(payload.results ?? []);
+}
+
+export async function updateAssetPolicy(update: AssetPolicyUpdate): Promise<AssetPolicyUpdate> {
+  const baseUrl = apiBaseUrl();
+  if (!baseUrl) {
+    throw new Error("Connect VITE_API_URL before saving asset policy.");
+  }
+
+  const response = await fetch(`${baseUrl}/assets/policy`, {
+    body: JSON.stringify({
+      campaign: update.campaign,
+      consent_status: update.consentStatus,
+      curator_tags: update.curatorTags,
+      expiration_date: update.expirationDate,
+      groups: update.groups,
+      key: update.key,
+      location: update.location,
+      owner_department: update.ownerDepartment,
+      review_status: update.reviewStatus,
+      staff_names: update.staffNames,
+      usage_rights: update.usageRights,
+      visibility: update.visibility,
+    }),
+    headers: jsonAuthHeaders(),
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new Error(`Policy update failed with status ${response.status}.`);
+  }
+
+  const payload = (await response.json()) as Partial<{
+    campaign: string;
+    consent_status: string;
+    curator_tags: string[];
+    expiration_date: string;
+    groups: string[];
+    key: string;
+    location: string;
+    owner_department: string;
+    review_status: string;
+    staff_names: string[];
+    usage_rights: string;
+    visibility: string;
+  }>;
+
+  return {
+    campaign: payload.campaign ?? "",
+    consentStatus: payload.consent_status ?? "missing",
+    curatorTags: payload.curator_tags ?? [],
+    expirationDate: payload.expiration_date ?? "",
+    groups: payload.groups ?? [],
+    key: payload.key ?? update.key,
+    location: payload.location ?? "",
+    ownerDepartment: payload.owner_department ?? "",
+    reviewStatus: payload.review_status ?? "pending_review",
+    staffNames: payload.staff_names ?? [],
+    usageRights: payload.usage_rights ?? "unknown",
+    visibility: payload.visibility ?? "library",
+  };
+}
+
+export async function inviteAdminUser(email: string, groups: string[]): Promise<AdminUserInvite> {
+  const baseUrl = apiBaseUrl();
+  if (!baseUrl) {
+    throw new Error("Connect VITE_API_URL before inviting users.");
+  }
+
+  const response = await fetch(`${baseUrl}/admin/users`, {
+    body: JSON.stringify({ email, groups }),
+    headers: jsonAuthHeaders(),
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new Error(`User invite failed with status ${response.status}.`);
+  }
+
+  return (await response.json()) as AdminUserInvite;
+}
+
 function inferContentType(file: File) {
   if (file.type) {
     return file.type;
@@ -348,7 +469,6 @@ function isRetryableStatus(status: number) {
 
 async function requestUploadPresign(
   file: File,
-  uploadToken: string,
   checksumSha256: string,
 ): Promise<UploadPresignResponse> {
   const baseUrl = apiBaseUrl();
@@ -365,7 +485,6 @@ async function requestUploadPresign(
       }),
       headers: {
         "Content-Type": "application/json",
-        "x-upload-token": uploadToken,
         ...authHeaders(),
       },
       method: "POST",
@@ -435,7 +554,6 @@ function putFileWithProgress(
 
 export async function uploadPhoto(
   file: File,
-  uploadToken: string,
   checksumSha256: string,
   onProgress: (progress: number) => void,
 ): Promise<UploadResult> {
@@ -444,7 +562,7 @@ export async function uploadPhoto(
     throw new Error("Upload requires VITE_API_URL to point at the deployed API.");
   }
 
-  const payload = await requestUploadPresign(file, uploadToken, checksumSha256);
+  const payload = await requestUploadPresign(file, checksumSha256);
   if (payload.duplicate) {
     onProgress(100);
     return {
