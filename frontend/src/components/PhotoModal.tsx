@@ -216,13 +216,15 @@ export function PhotoModal({ authSession, canCurate, onClose, photo }: PhotoModa
           Close
         </button>
 
-        {photo.imageUrl ? (
-          <img alt={photo.altText} className="modal-image" src={photo.imageUrl} />
-        ) : (
-          <div className="modal-image photo-thumb-preview">
-            <span>{photo.sceneType}</span>
-          </div>
-        )}
+        <div className="modal-media">
+          {photo.imageUrl ? (
+            <img alt={photo.altText} className="modal-image" src={photo.imageUrl} />
+          ) : (
+            <div className="modal-image photo-thumb-preview">
+              <span>{photo.sceneType}</span>
+            </div>
+          )}
+        </div>
 
         <div className="modal-copy">
           <div className="photo-card-meta">

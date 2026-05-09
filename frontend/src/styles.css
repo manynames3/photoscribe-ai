@@ -775,8 +775,8 @@ img {
   z-index: 1;
 }
 
-.modal-image {
-  align-self: center;
+.modal-media {
+  align-items: center;
   background:
     linear-gradient(45deg, rgba(35, 83, 82, 0.06) 25%, transparent 25%),
     linear-gradient(-45deg, rgba(35, 83, 82, 0.06) 25%, transparent 25%),
@@ -789,10 +789,21 @@ img {
     12px -12px,
     -12px 0;
   background-size: 24px 24px;
+  display: flex;
   height: 100%;
+  justify-content: center;
   max-height: min(88vh, 920px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.modal-image {
+  display: block;
+  height: auto;
+  max-height: min(88vh, 920px);
+  max-width: 100%;
   object-fit: contain;
-  width: 100%;
+  width: auto;
 }
 
 .modal-copy {
@@ -1003,9 +1014,13 @@ img {
     grid-template-columns: 1fr;
   }
 
-  .modal-image {
-    height: auto;
+  .modal-media {
     max-height: 42vh;
+  }
+
+  .modal-image {
+    max-height: 42vh;
+    max-width: 100%;
   }
 }
 
