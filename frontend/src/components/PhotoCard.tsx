@@ -9,7 +9,24 @@ function labelize(value: string | undefined) {
   return value ? value.replace(/_/g, " ") : "not classified";
 }
 
+function policyClass(value: string | undefined) {
+  if (value === "approved") {
+    return " is-approved";
+  }
+
+  if (value === "restricted" || value === "missing" || value === "expired") {
+    return " is-risk";
+  }
+
+  return "";
+}
+
 export function PhotoCard({ onOpen, result }: PhotoCardProps) {
+  const department = result.ownerDepartment || "Unassigned";
+  const consent = result.consentStatus || "consent missing";
+  const usageRights = result.usageRights || "rights unknown";
+  const reviewStatus = result.reviewStatus || "pending";
+
   return (
     <button
       className="photo-card"
@@ -31,14 +48,31 @@ export function PhotoCard({ onOpen, result }: PhotoCardProps) {
 
       <div className="photo-card-body">
         <div className="photo-card-meta">
-          <span className="meta-pill">{result.mood}</span>
+          <span className={`meta-pill${policyClass(reviewStatus)}`}>{labelize(reviewStatus)}</span>
           <span className="meta-subtle">{labelize(result.sceneType)}</span>
-          {result.reviewStatus ? <span className="meta-subtle">{labelize(result.reviewStatus)}</span> : null}
         </div>
         <p className="photo-description">{result.description}</p>
+        <dl className="asset-record-grid">
+          <div>
+            <dt>Owner</dt>
+            <dd>{department}</dd>
+          </div>
+          <div>
+            <dt>Consent</dt>
+            <dd>{labelize(consent)}</dd>
+          </div>
+          <div>
+            <dt>Rights</dt>
+            <dd>{labelize(usageRights)}</dd>
+          </div>
+          <div>
+            <dt>People</dt>
+            <dd>{typeof result.peopleCount === "number" ? result.peopleCount : "Uncounted"}</dd>
+          </div>
+        </dl>
         <div className="photo-card-footer">
-          <span>{typeof result.peopleCount === "number" ? `${result.peopleCount} people` : "people uncounted"}</span>
           <span>{labelize(result.visibility ?? (result.source === "api" ? "library" : "preview"))}</span>
+          <span>{labelize(result.mood)}</span>
         </div>
       </div>
     </button>

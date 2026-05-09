@@ -19,41 +19,43 @@ const SAMPLE_QUERIES = [
   "hospital executive headshot",
 ];
 
+const NAV_ITEMS = ["Library", "Review queue", "Uploads", "Departments", "Governance"];
+
 const CONTROL_CARDS = [
   {
-    label: "Departments",
-    value: "Comms, HR, Compliance",
+    label: "Access model",
+    value: "Role-scoped review",
   },
   {
-    label: "Asset governance",
-    value: "Review status + visibility",
+    label: "Source",
+    value: "Private S3 assets",
   },
   {
-    label: "Discovery",
-    value: "Semantic clinical-media search",
+    label: "Indexing",
+    value: "AI metadata + vectors",
   },
   {
-    label: "Security posture",
-    value: "Private S3 + signed access",
+    label: "Governance",
+    value: "Consent + rights fields",
   },
 ];
 
 const DEPARTMENT_WORKFLOWS = [
   {
-    label: "Marketing",
-    value: "Find campaign-ready event, staff, and facility images without chasing shared folders.",
+    label: "Approved campaign assets",
+    value: "Marketing-ready images cleared for presentations, intranet, and department requests.",
   },
   {
-    label: "Human Resources",
-    value: "Locate employee portraits and recruiting imagery by role, mood, date, or setting.",
+    label: "Staff headshots",
+    value: "Portraits searchable by staff member, department owner, campaign, and consent status.",
   },
   {
-    label: "Compliance",
-    value: "Review visibility, policy status, and potentially sensitive media before release.",
+    label: "Needs compliance review",
+    value: "Assets requiring consent, usage-rights, or release-readiness verification.",
   },
   {
-    label: "Facilities",
-    value: "Search campus, renovation, and operations documentation from one governed library.",
+    label: "Facilities documentation",
+    value: "Campus, interior, renovation, and operations imagery organized by location and asset type.",
   },
 ];
 
@@ -140,148 +142,193 @@ export function App() {
 
   return (
     <>
-      <main className="app-shell">
+      <main className="app-shell institutional-shell">
         <div className="app-ambient app-ambient-left" />
         <div className="app-ambient app-ambient-right" />
 
-        <section className="hero-panel">
-          <p className="eyebrow">CareFrame Media Intelligence</p>
-          <h1>Internal media search for hospital departments.</h1>
-          <p className="hero-copy">
-            A governed visual asset hub for Marketing, HR, Compliance, Facilities, and leadership
-            teams that need to find approved hospital imagery without digging through shared drives.
-          </p>
-
-          <div className="control-grid" aria-label="Production control summary">
-            {CONTROL_CARDS.map((card) => (
-              <div className="control-card" key={card.label}>
-                <span>{card.label}</span>
-                <strong>{card.value}</strong>
-              </div>
-            ))}
+        <aside className="app-rail" aria-label="Institutional navigation">
+          <div className="rail-brand">
+            <span className="brand-mark">CF</span>
+            <div>
+              <strong>CareFrame</strong>
+              <span>Media Intelligence</span>
+            </div>
           </div>
 
-          <div className="chip-row">
-            {SAMPLE_QUERIES.map((sample) => (
-              <button
-                key={sample}
-                className="sample-chip"
-                onClick={() => {
-                  setQuery(sample);
-                  void handleSearch(sample, filters);
-                }}
-                type="button"
-              >
-                {sample}
+          <nav className="rail-nav">
+            {NAV_ITEMS.map((item, index) => (
+              <button className={`rail-link${index === 0 ? " is-active" : ""}`} key={item} type="button">
+                {item}
               </button>
             ))}
+          </nav>
+
+          <div className="rail-assurance">
+            <span>Governed library</span>
+            <p>Private assets, signed delivery, review queue, and role-aware curation.</p>
           </div>
+        </aside>
 
-          <div className="department-grid" aria-label="Hospital department workflows">
-            {DEPARTMENT_WORKFLOWS.map((workflow) => (
-              <article className="department-card" key={workflow.label}>
-                <span>{workflow.label}</span>
-                <p>{workflow.value}</p>
-              </article>
-            ))}
-          </div>
+        <div className="app-workspace">
+          <header className="command-bar">
+            <div>
+              <p className="eyebrow">Emory University Hospital</p>
+              <strong>Institutional Media Command Center</strong>
+            </div>
+            <div className="command-actions">
+              <span className="environment-pill">{import.meta.env.VITE_API_URL ? "Live AWS backend" : "Sample mode"}</span>
+              <span className="session-pill">{authSession ? authSession.email : "Reviewer sign-in required"}</span>
+            </div>
+          </header>
 
-          <SearchBar
-            disabled={isLoading}
-            onChange={setQuery}
-            onSubmit={(nextQuery) => {
-              void handleSearch(nextQuery);
-            }}
-            searchInputRef={searchInputRef}
-            value={query}
-          />
-        </section>
-
-        <LoginPanel
-          authSession={authSession}
-          onSignIn={(session) => {
-            setAuthSession(session);
-            setSecurityContext({ authMode: "jwt", deniedResults: 0, groups: session.groups });
-          }}
-          onSignOut={() => {
-            signOut();
-            setAuthSession(null);
-            setResults([]);
-            setSecurityContext({ authMode: "anonymous", deniedResults: 0, groups: [] });
-            setStatus("Sign in to search the private hospital media library.");
-          }}
-        />
-
-        {isSignedIn ? (
-          <>
-            <UploadPanel
-              onUploaded={(uploadedCount) => {
-                setStatus(
-                  `${uploadedCount} upload${uploadedCount === 1 ? "" : "s"} accepted. Assets enter the review queue after AI metadata extraction finishes.`,
-                );
-              }}
-            />
-            <ReviewQueue canReview={canReview} onOpen={setSelectedPhoto} />
-            <AdminPanel canAdmin={canAdmin} />
-          </>
-        ) : null}
-
-        <section className="content-grid">
-          <aside className="sidebar-panel">
-            <div className="sidebar-header">
+          <section className="hero-panel command-panel">
+            <div className="hero-layout">
               <div>
-                <p className="sidebar-label">Find</p>
-                <h2>Asset finder</h2>
+                <p className="eyebrow">Hospital asset operations</p>
+                <h1>Find approved clinical media before teams reshoot it.</h1>
+                <p className="hero-copy">
+                  A governed internal library for Marketing, HR, Compliance, Facilities, and leadership
+                  teams to search hospital imagery by meaning, policy status, people, and department use.
+                </p>
               </div>
-              {activeFilterCount ? <span className="filter-count">{activeFilterCount}</span> : null}
+              <div className="executive-card">
+                <span>Operational posture</span>
+                <strong>Search, review, and release from one controlled workspace.</strong>
+                <p>Designed for departments that need searchable image assets without exposing private files.</p>
+              </div>
             </div>
 
-            <FilterPanel
+            <SearchBar
               disabled={isLoading}
-              filters={filters}
-              onChange={handleFilterChange}
-              onClear={() => handleFilterChange({})}
+              onChange={setQuery}
+              onSubmit={(nextQuery) => {
+                void handleSearch(nextQuery);
+              }}
+              searchInputRef={searchInputRef}
+              value={query}
             />
-          </aside>
 
-          <section className="results-panel">
-            <div className="results-summary">
-              <div>
-                <p className="sidebar-label">Results</p>
-                <h2>{submittedQuery ? `“${submittedQuery}”` : "Waiting for your first search"}</h2>
-                <p className="status-copy">{status}</p>
-              </div>
-              <div className="mode-stack">
-                <span className="mode-pill">{import.meta.env.VITE_API_URL ? "Hospital asset API" : "Sample catalog"}</span>
-                <span className="mode-subtle">
-                  {authSession
-                    ? `${authSession.groups.join(", ") || "no role groups"}`
-                    : "Sign in required for live assets"}
-                </span>
-                {securityContext.deniedResults ? (
-                  <span className="mode-subtle">{securityContext.deniedResults} policy-filtered</span>
-                ) : null}
-              </div>
+            <div className="control-grid" aria-label="Production control summary">
+              {CONTROL_CARDS.map((card) => (
+                <div className="control-card" key={card.label}>
+                  <span>{card.label}</span>
+                  <strong>{card.value}</strong>
+                </div>
+              ))}
             </div>
 
-            {error ? <p className="error-banner">{error}</p> : null}
-            <p className="indexing-note">
-              Recent uploads appear only after image analysis writes metadata into the searchable index.
-              If newly uploaded hospital images are missing, the ingest queue or AI model access needs attention.
-            </p>
+            <div className="saved-view-grid" aria-label="Institutional saved views">
+              {DEPARTMENT_WORKFLOWS.map((workflow) => (
+                <article className="department-card" key={workflow.label}>
+                  <span>{workflow.label}</span>
+                  <p>{workflow.value}</p>
+                </article>
+              ))}
+            </div>
 
-            <PhotoGrid
-              isLoading={isLoading}
-              onOpen={setSelectedPhoto}
-              results={results}
-              submittedQuery={submittedQuery}
-            />
+            <div className="chip-row">
+              {SAMPLE_QUERIES.map((sample) => (
+                <button
+                  key={sample}
+                  className="sample-chip"
+                  onClick={() => {
+                    setQuery(sample);
+                    void handleSearch(sample, filters);
+                  }}
+                  type="button"
+                >
+                  {sample}
+                </button>
+              ))}
+            </div>
           </section>
-        </section>
 
-        <footer className="site-footer">
-          <p>©2026 SUPREME AI VENTURES LLC</p>
-        </footer>
+          <LoginPanel
+            authSession={authSession}
+            onSignIn={(session) => {
+              setAuthSession(session);
+              setSecurityContext({ authMode: "jwt", deniedResults: 0, groups: session.groups });
+            }}
+            onSignOut={() => {
+              signOut();
+              setAuthSession(null);
+              setResults([]);
+              setSecurityContext({ authMode: "anonymous", deniedResults: 0, groups: [] });
+              setStatus("Sign in to search the private hospital media library.");
+            }}
+          />
+
+          {isSignedIn ? (
+            <>
+              <UploadPanel
+                onUploaded={(uploadedCount) => {
+                  setStatus(
+                    `${uploadedCount} upload${uploadedCount === 1 ? "" : "s"} accepted. Assets enter the review queue after AI metadata extraction finishes.`,
+                  );
+                }}
+              />
+              <ReviewQueue canReview={canReview} onOpen={setSelectedPhoto} />
+              <AdminPanel canAdmin={canAdmin} />
+            </>
+          ) : null}
+
+          <section className="content-grid">
+            <aside className="sidebar-panel">
+              <div className="sidebar-header">
+                <div>
+                  <p className="sidebar-label">Governance filters</p>
+                  <h2>Asset controls</h2>
+                </div>
+                {activeFilterCount ? <span className="filter-count">{activeFilterCount}</span> : null}
+              </div>
+
+              <FilterPanel
+                disabled={isLoading}
+                filters={filters}
+                onChange={handleFilterChange}
+                onClear={() => handleFilterChange({})}
+              />
+            </aside>
+
+            <section className="results-panel">
+              <div className="results-summary">
+                <div>
+                  <p className="sidebar-label">Search results</p>
+                  <h2>{submittedQuery ? `“${submittedQuery}”` : "Waiting for your first search"}</h2>
+                  <p className="status-copy">{status}</p>
+                </div>
+                <div className="mode-stack">
+                  <span className="mode-pill">{import.meta.env.VITE_API_URL ? "Hospital asset API" : "Sample catalog"}</span>
+                  <span className="mode-subtle">
+                    {authSession
+                      ? `${authSession.groups.join(", ") || "no role groups"}`
+                      : "Sign in required for live assets"}
+                  </span>
+                  {securityContext.deniedResults ? (
+                    <span className="mode-subtle">{securityContext.deniedResults} policy-filtered</span>
+                  ) : null}
+                </div>
+              </div>
+
+              {error ? <p className="error-banner">{error}</p> : null}
+              <p className="indexing-note">
+                Recent uploads appear only after image analysis writes metadata into the searchable index.
+                If newly uploaded hospital images are missing, the ingest queue or AI model access needs attention.
+              </p>
+
+              <PhotoGrid
+                isLoading={isLoading}
+                onOpen={setSelectedPhoto}
+                results={results}
+                submittedQuery={submittedQuery}
+              />
+            </section>
+          </section>
+
+          <footer className="site-footer">
+            <p>©2026 SUPREME AI VENTURES LLC</p>
+          </footer>
+        </div>
       </main>
 
       <PhotoModal
