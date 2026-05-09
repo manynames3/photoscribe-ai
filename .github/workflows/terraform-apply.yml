@@ -2,6 +2,12 @@ name: terraform-apply
 
 on:
   workflow_dispatch:
+    inputs:
+      confirm_apply:
+        description: "Actually run terraform apply against AWS"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -16,16 +22,43 @@ jobs:
   apply:
     runs-on: ubuntu-latest
     steps:
+      - name: Check apply configuration
+        id: config
+        env:
+          AWS_APPLY_ROLE_ARN: ${{ secrets.AWS_APPLY_ROLE_ARN }}
+          TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+          TF_LOCK_TABLE: ${{ secrets.TF_LOCK_TABLE }}
+        run: |
+          ready=true
+
+          if [ "${{ inputs.confirm_apply }}" != "true" ]; then
+            echo "::notice::Skipping Terraform apply. Re-run with confirm_apply=true to deploy AWS infrastructure."
+            ready=false
+          fi
+
+          for name in AWS_APPLY_ROLE_ARN TF_STATE_BUCKET TF_LOCK_TABLE; do
+            if [ -z "${!name}" ]; then
+              echo "::notice::Skipping Terraform apply because $name is not configured."
+              ready=false
+            fi
+          done
+
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v6
+        if: steps.config.outputs.ready == 'true'
 
       - uses: hashicorp/setup-terraform@v3
+        if: steps.config.outputs.ready == 'true'
 
       - uses: aws-actions/configure-aws-credentials@v4
+        if: steps.config.outputs.ready == 'true'
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ secrets.AWS_APPLY_ROLE_ARN }}
 
       - name: Terraform init
+        if: steps.config.outputs.ready == 'true'
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
           terraform init \
@@ -35,9 +68,11 @@ jobs:
             -backend-config="dynamodb_table=${{ secrets.TF_LOCK_TABLE }}"
 
       - name: Terraform plan
+        if: steps.config.outputs.ready == 'true'
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform plan -var-file=envs/dev.tfvars -out=plan.tfplan
 
       - name: Terraform apply
+        if: steps.config.outputs.ready == 'true'
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform apply -auto-approve plan.tfplan

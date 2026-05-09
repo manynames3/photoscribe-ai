@@ -1,7 +1,13 @@
-name: frontend-build
+name: frontend-s3-cloudfront-deploy
 
 on:
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Deploy frontend assets to the Terraform-managed S3/CloudFront stack"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -15,23 +21,47 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check deploy configuration
+        id: config
+        env:
+          AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME }}
+        run: |
+          ready=true
+
+          if [ "${{ inputs.deploy }}" != "true" ]; then
+            echo "::notice::Skipping S3/CloudFront frontend deploy. Cloudflare Pages is the primary public frontend deployment path."
+            ready=false
+          fi
+
+          if [ -z "$AWS_ROLE_TO_ASSUME" ]; then
+            echo "::notice::Skipping S3/CloudFront frontend deploy because AWS_ROLE_TO_ASSUME is not configured."
+            ready=false
+          fi
+
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
+        if: steps.config.outputs.ready == 'true'
         uses: actions/checkout@v6
 
       - name: Setup Terraform
+        if: steps.config.outputs.ready == 'true'
         uses: hashicorp/setup-terraform@v3
 
       - name: Configure AWS credentials
+        if: steps.config.outputs.ready == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
 
       - name: Init Terraform
+        if: steps.config.outputs.ready == 'true'
         working-directory: terraform
         run: terraform init -input=false -backend-config=dev.backend.hcl
 
       - name: Capture infrastructure outputs
+        if: steps.config.outputs.ready == 'true'
         id: infra
         working-directory: terraform
         run: |
@@ -40,6 +70,7 @@ jobs:
           echo "search_api_url=$(terraform output -raw search_api_url)" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node
+        if: steps.config.outputs.ready == 'true'
         uses: actions/setup-node@v6
         with:
           node-version: 20
@@ -47,6 +78,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Build frontend
+        if: steps.config.outputs.ready == 'true'
         working-directory: frontend
         run: |
           printf 'VITE_API_URL=%s\n' '${{ steps.infra.outputs.search_api_url }}' > .env.production
@@ -54,9 +86,9 @@ jobs:
           npm run build
 
       - name: Sync assets to S3
-        if: steps.infra.outputs.frontend_bucket != ''
+        if: steps.config.outputs.ready == 'true' && steps.infra.outputs.frontend_bucket != ''
         run: aws s3 sync frontend/dist/ "s3://${{ steps.infra.outputs.frontend_bucket }}/" --delete
 
       - name: Invalidate CloudFront
-        if: steps.infra.outputs.frontend_distribution_id != ''
+        if: steps.config.outputs.ready == 'true' && steps.infra.outputs.frontend_distribution_id != ''
         run: aws cloudfront create-invalidation --distribution-id "${{ steps.infra.outputs.frontend_distribution_id }}" --paths "/*"
