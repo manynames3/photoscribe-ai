@@ -12,48 +12,32 @@ import { SearchBar } from "./components/SearchBar";
 import { UploadPanel } from "./components/UploadPanel";
 import type { AuthSession, PhotoResult, SearchFilters } from "./types";
 
-const SAMPLE_QUERIES = [
-  "physician at nurses station",
-  "community health event",
-  "sterile procedure room",
-  "hospital executive headshot",
-];
-
-const CONTROL_CARDS = [
-  {
-    label: "Departments",
-    value: "Comms, HR, Compliance",
-  },
-  {
-    label: "Asset governance",
-    value: "Review status + visibility",
-  },
-  {
-    label: "Discovery",
-    value: "Semantic clinical-media search",
-  },
-  {
-    label: "Security posture",
-    value: "Private S3 + signed access",
-  },
-];
+const NAV_ITEMS = ["Photos", "Needs review", "Uploads", "Departments", "Approvals"];
 
 const DEPARTMENT_WORKFLOWS = [
   {
-    label: "Marketing",
-    value: "Find campaign-ready event, staff, and facility images without chasing shared folders.",
+    detail: "Marketing-ready images cleared for presentations, intranet, and department requests.",
+    label: "Campaign photos",
+    query: "approved campaign assets",
+    status: "Approved",
   },
   {
-    label: "Human Resources",
-    value: "Locate employee portraits and recruiting imagery by role, mood, date, or setting.",
+    detail: "Portraits searchable by staff member, department owner, campaign, and consent status.",
+    label: "Staff headshots",
+    query: "hospital executive headshot",
+    status: "People",
   },
   {
-    label: "Compliance",
-    value: "Review visibility, policy status, and potentially sensitive media before release.",
+    detail: "Photos requiring consent, usage-rights, or release-readiness verification.",
+    label: "Needs review",
+    query: "needs compliance review",
+    status: "Review",
   },
   {
+    detail: "Campus, interior, renovation, and operations imagery organized by location and asset type.",
     label: "Facilities",
-    value: "Search campus, renovation, and operations documentation from one governed library.",
+    query: "hospital facilities documentation",
+    status: "Location",
   },
 ];
 
@@ -61,10 +45,12 @@ export function App() {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [query, setQuery] = useState("");
+  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
   const [submittedQuery, setSubmittedQuery] = useState("");
+  const [resultView, setResultView] = useState<"grid" | "list">("grid");
   const [results, setResults] = useState<PhotoResult[]>([]);
   const [filters, setFilters] = useState<SearchFilters>({});
-  const [status, setStatus] = useState("Search approved hospital media by department need, subject, setting, or visual tone.");
+  const [status, setStatus] = useState("Search by person, department, event, location, or description.");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoResult | null>(null);
@@ -132,156 +118,255 @@ export function App() {
     }
   }
 
+  function handleSignOut() {
+    signOut();
+    setAuthSession(null);
+    setResults([]);
+    setSecurityContext({ authMode: "anonymous", deniedResults: 0, groups: [] });
+    setStatus("Sign in to view and manage private hospital photos.");
+  }
+
+  function handleWorkflowSearch(workflowQuery: string) {
+    setQuery(workflowQuery);
+    void handleSearch(workflowQuery, filters);
+  }
+
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
   const userGroups = authSession?.groups ?? [];
   const canReview = userGroups.includes("admin") || userGroups.includes("reviewer");
   const canAdmin = userGroups.includes("admin");
   const isSignedIn = Boolean(authSession);
+  const hasSubmittedSearch = Boolean(submittedQuery);
+  const pendingReviewCount = results.filter((result) => result.reviewStatus === "pending_review").length;
+  const approvedCount = results.filter((result) => result.reviewStatus === "approved").length;
+  const missingConsentCount = results.filter((result) => !result.consentStatus || result.consentStatus === "missing").length;
+  const restrictedCount = results.filter((result) => result.visibility === "restricted").length;
+  const resultsLabel = hasSubmittedSearch ? "Matching photos" : "Browse";
+  const resultsTitle = hasSubmittedSearch ? `“${submittedQuery}”` : "Photo library";
+  const resultsMessage =
+    hasSubmittedSearch || isLoading || error
+      ? status
+      : "Search above or choose a shortcut to find photos by person, department, event, or location.";
+  const metricCards = [
+    {
+      label: "Photos found",
+      tone: "neutral",
+      value: hasSubmittedSearch ? results.length : "Ready",
+    },
+    {
+      label: "Approved",
+      tone: "approved",
+      value: hasSubmittedSearch ? approvedCount : "—",
+    },
+    {
+      label: "Needs review",
+      tone: "warning",
+      value: hasSubmittedSearch ? pendingReviewCount : "—",
+    },
+    {
+      label: "Missing consent",
+      tone: "risk",
+      value: hasSubmittedSearch ? missingConsentCount : "—",
+    },
+    {
+      label: "Restricted",
+      tone: "neutral",
+      value: hasSubmittedSearch ? restrictedCount : "—",
+    },
+  ];
 
   return (
     <>
-      <main className="app-shell">
+      <main className="app-shell institutional-shell">
         <div className="app-ambient app-ambient-left" />
         <div className="app-ambient app-ambient-right" />
 
-        <section className="hero-panel">
-          <p className="eyebrow">CareFrame Media Intelligence</p>
-          <h1>Internal media search for hospital departments.</h1>
-          <p className="hero-copy">
-            A governed visual asset hub for Marketing, HR, Compliance, Facilities, and leadership
-            teams that need to find approved hospital imagery without digging through shared drives.
-          </p>
-
-          <div className="control-grid" aria-label="Production control summary">
-            {CONTROL_CARDS.map((card) => (
-              <div className="control-card" key={card.label}>
-                <span>{card.label}</span>
-                <strong>{card.value}</strong>
-              </div>
-            ))}
+        <aside className="app-rail" aria-label="Institutional navigation">
+          <div className="rail-brand">
+            <span className="brand-mark">CF</span>
+            <div>
+              <strong>CareFrame</strong>
+              <span>Media desk</span>
+            </div>
           </div>
 
-          <div className="chip-row">
-            {SAMPLE_QUERIES.map((sample) => (
+          <nav className="rail-nav">
+            {NAV_ITEMS.map((item, index) => (
+              <button className={`rail-link${index === 0 ? " is-active" : ""}`} key={item} type="button">
+                <span>{item}</span>
+                {item === "Needs review" && pendingReviewCount ? <strong>{pendingReviewCount}</strong> : null}
+              </button>
+            ))}
+          </nav>
+
+          <div className="rail-assurance">
+            <span>Private workspace</span>
+            <p>Staff can upload, review, and manage hospital photos in one place.</p>
+          </div>
+        </aside>
+
+        <div className="app-workspace">
+          <header className="command-bar">
+            <div>
+              <p className="eyebrow">Emory University Hospital</p>
+            </div>
+            <div className="command-actions">
               <button
-                key={sample}
-                className="sample-chip"
+                className="auth-trigger"
                 onClick={() => {
-                  setQuery(sample);
-                  void handleSearch(sample, filters);
+                  if (authSession) {
+                    handleSignOut();
+                    return;
+                  }
+                  setIsAuthPanelOpen((current) => !current);
                 }}
                 type="button"
               >
-                {sample}
+                {authSession ? "Sign out" : "Staff sign in"}
               </button>
-            ))}
-          </div>
+            </div>
+          </header>
 
-          <div className="department-grid" aria-label="Hospital department workflows">
-            {DEPARTMENT_WORKFLOWS.map((workflow) => (
-              <article className="department-card" key={workflow.label}>
-                <span>{workflow.label}</span>
-                <p>{workflow.value}</p>
-              </article>
-            ))}
-          </div>
-
-          <SearchBar
-            disabled={isLoading}
-            onChange={setQuery}
-            onSubmit={(nextQuery) => {
-              void handleSearch(nextQuery);
-            }}
-            searchInputRef={searchInputRef}
-            value={query}
-          />
-        </section>
-
-        <LoginPanel
-          authSession={authSession}
-          onSignIn={(session) => {
-            setAuthSession(session);
-            setSecurityContext({ authMode: "jwt", deniedResults: 0, groups: session.groups });
-          }}
-          onSignOut={() => {
-            signOut();
-            setAuthSession(null);
-            setResults([]);
-            setSecurityContext({ authMode: "anonymous", deniedResults: 0, groups: [] });
-            setStatus("Sign in to search the private hospital media library.");
-          }}
-        />
-
-        {isSignedIn ? (
-          <>
-            <UploadPanel
-              onUploaded={(uploadedCount) => {
-                setStatus(
-                  `${uploadedCount} upload${uploadedCount === 1 ? "" : "s"} accepted. Assets enter the review queue after AI metadata extraction finishes.`,
-                );
-              }}
-            />
-            <ReviewQueue canReview={canReview} onOpen={setSelectedPhoto} />
-            <AdminPanel canAdmin={canAdmin} />
-          </>
-        ) : null}
-
-        <section className="content-grid">
-          <aside className="sidebar-panel">
-            <div className="sidebar-header">
-              <div>
-                <p className="sidebar-label">Find</p>
-                <h2>Asset finder</h2>
-              </div>
-              {activeFilterCount ? <span className="filter-count">{activeFilterCount}</span> : null}
+          <section className="hero-panel command-panel">
+            <div className="command-head">
+              <p className="eyebrow">Search</p>
             </div>
 
-            <FilterPanel
+            <SearchBar
               disabled={isLoading}
-              filters={filters}
-              onChange={handleFilterChange}
-              onClear={() => handleFilterChange({})}
+              onChange={setQuery}
+              onSubmit={(nextQuery) => {
+                void handleSearch(nextQuery);
+              }}
+              searchInputRef={searchInputRef}
+              value={query}
             />
-          </aside>
 
-          <section className="results-panel">
-            <div className="results-summary">
-              <div>
-                <p className="sidebar-label">Results</p>
-                <h2>{submittedQuery ? `“${submittedQuery}”` : "Waiting for your first search"}</h2>
-                <p className="status-copy">{status}</p>
-              </div>
-              <div className="mode-stack">
-                <span className="mode-pill">{import.meta.env.VITE_API_URL ? "Hospital asset API" : "Sample catalog"}</span>
-                <span className="mode-subtle">
-                  {authSession
-                    ? `${authSession.groups.join(", ") || "no role groups"}`
-                    : "Sign in required for live assets"}
-                </span>
-                {securityContext.deniedResults ? (
-                  <span className="mode-subtle">{securityContext.deniedResults} policy-filtered</span>
-                ) : null}
-              </div>
+            <div className="metric-strip" aria-label="Photo library status">
+              {metricCards.map((metric) => (
+                <div className={`metric-card is-${metric.tone}`} key={metric.label}>
+                  <strong>{metric.value}</strong>
+                  <span>{metric.label}</span>
+                </div>
+              ))}
             </div>
-
-            {error ? <p className="error-banner">{error}</p> : null}
-            <p className="indexing-note">
-              Recent uploads appear only after image analysis writes metadata into the searchable index.
-              If newly uploaded hospital images are missing, the ingest queue or AI model access needs attention.
-            </p>
-
-            <PhotoGrid
-              isLoading={isLoading}
-              onOpen={setSelectedPhoto}
-              results={results}
-              submittedQuery={submittedQuery}
-            />
           </section>
-        </section>
 
-        <footer className="site-footer">
-          <p>©2026 SUPREME AI VENTURES LLC</p>
-        </footer>
+          {!isSignedIn && isAuthPanelOpen ? (
+            <LoginPanel
+              authSession={authSession}
+              onSignIn={(session) => {
+                setAuthSession(session);
+                setIsAuthPanelOpen(false);
+                setSecurityContext({ authMode: "jwt", deniedResults: 0, groups: session.groups });
+              }}
+              onSignOut={handleSignOut}
+            />
+          ) : null}
+
+          {isSignedIn ? (
+            <>
+              <UploadPanel
+                onUploaded={(uploadedCount) => {
+                  setStatus(
+                    `${uploadedCount} photo${uploadedCount === 1 ? "" : "s"} uploaded. New photos may take a few minutes to become searchable.`,
+                  );
+                }}
+              />
+              <ReviewQueue canReview={canReview} onOpen={setSelectedPhoto} />
+              <AdminPanel canAdmin={canAdmin} />
+            </>
+          ) : null}
+
+          <section className="content-grid">
+            <aside className="sidebar-panel">
+              <div className="sidebar-header">
+                <div>
+                  <p className="sidebar-label">Filters</p>
+                  <h2>Refine photos</h2>
+                </div>
+                {activeFilterCount ? <span className="filter-count">{activeFilterCount}</span> : null}
+              </div>
+
+              <FilterPanel
+                disabled={isLoading}
+                filters={filters}
+                onChange={handleFilterChange}
+                onClear={() => handleFilterChange({})}
+              />
+            </aside>
+
+            <section className="results-panel">
+              <div className="results-summary">
+                <div>
+                  <p className="sidebar-label">{resultsLabel}</p>
+                  <h2>{resultsTitle}</h2>
+                  <p className="status-copy">{resultsMessage}</p>
+                </div>
+                <div className="results-actions">
+                  <div className="view-toggle" aria-label="Result display mode">
+                    <button
+                      aria-pressed={resultView === "grid"}
+                      className={resultView === "grid" ? "is-active" : ""}
+                      onClick={() => setResultView("grid")}
+                      type="button"
+                    >
+                      Grid
+                    </button>
+                    <button
+                      aria-pressed={resultView === "list"}
+                      className={resultView === "list" ? "is-active" : ""}
+                      onClick={() => setResultView("list")}
+                      type="button"
+                    >
+                      List
+                    </button>
+                  </div>
+                  {securityContext.deniedResults ? (
+                    <span className="mode-subtle">{securityContext.deniedResults} hidden by access rules</span>
+                  ) : null}
+                </div>
+              </div>
+
+              {error ? <p className="error-banner">{error}</p> : null}
+
+              {!hasSubmittedSearch && !isLoading && !error ? (
+                <section className="browse-start" aria-label="Common photo requests">
+                  <div className="browse-start-header">
+                    <h3>Common requests</h3>
+                    <p>Choose a starting point, then narrow the results with filters.</p>
+                  </div>
+                  <div className="browse-card-grid">
+                    {DEPARTMENT_WORKFLOWS.map((workflow) => (
+                      <button
+                        className="browse-card"
+                        key={workflow.label}
+                        onClick={() => handleWorkflowSearch(workflow.query)}
+                        type="button"
+                      >
+                        <span>{workflow.status}</span>
+                        <strong>{workflow.label}</strong>
+                        <p>{workflow.detail}</p>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              <PhotoGrid
+                isLoading={isLoading}
+                onOpen={setSelectedPhoto}
+                results={results}
+                viewMode={resultView}
+                submittedQuery={submittedQuery}
+              />
+            </section>
+          </section>
+
+          <footer className="site-footer">
+            <p>©2026 SUPREME AI VENTURES LLC</p>
+          </footer>
+        </div>
       </main>
 
       <PhotoModal

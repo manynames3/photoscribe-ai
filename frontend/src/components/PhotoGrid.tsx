@@ -7,12 +7,13 @@ type PhotoGridProps = {
   onOpen: (result: PhotoResult) => void;
   results: PhotoResult[];
   submittedQuery: string;
+  viewMode: "grid" | "list";
 };
 
-export function PhotoGrid({ isLoading, onOpen, results, submittedQuery }: PhotoGridProps) {
+export function PhotoGrid({ isLoading, onOpen, results, submittedQuery, viewMode }: PhotoGridProps) {
   if (isLoading) {
     return (
-      <section aria-label="Loading results" className="photo-grid">
+      <section aria-label="Loading results" className={`photo-grid is-${viewMode}`}>
         {Array.from({ length: 6 }, (_, index) => (
           <article key={`loading-${index + 1}`} className="photo-card photo-card-skeleton">
             <div className="photo-thumb skeleton-block" />
@@ -28,11 +29,15 @@ export function PhotoGrid({ isLoading, onOpen, results, submittedQuery }: PhotoG
   }
 
   if (!results.length) {
+    if (!submittedQuery) {
+      return null;
+    }
+
     return <EmptyState submittedQuery={submittedQuery} />;
   }
 
   return (
-    <section aria-label="Search results" className="photo-grid">
+    <section aria-label="Search results" className={`photo-grid is-${viewMode}`}>
       {results.map((result) => (
         <PhotoCard key={result.id} onOpen={onOpen} result={result} />
       ))}

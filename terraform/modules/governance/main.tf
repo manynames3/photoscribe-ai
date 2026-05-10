@@ -8,6 +8,17 @@ resource "aws_dynamodb_table" "asset_policy" {
     type = "S"
   }
 
+  attribute {
+    name = "review_status"
+    type = "S"
+  }
+
+  global_secondary_index {
+    hash_key        = "review_status"
+    name            = "review-status-index"
+    projection_type = "ALL"
+  }
+
   server_side_encryption {
     enabled = true
   }

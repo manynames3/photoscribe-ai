@@ -83,6 +83,7 @@ jobs:
         run: |
           printf 'VITE_API_URL=%s\n' '${{ steps.infra.outputs.search_api_url }}' > .env.production
           npm ci
+          npm test
           npm run build
 
       - name: Sync assets to S3

@@ -59,7 +59,7 @@ function saveSession(token: string): AuthSession {
 function userPool() {
   const { clientId, userPoolId } = cognitoConfig();
   if (!clientId || !userPoolId) {
-    throw new Error("Cognito login is not configured for this deployment.");
+    throw new Error("Staff sign-in is not set up for this site yet.");
   }
 
   return new CognitoUserPool({

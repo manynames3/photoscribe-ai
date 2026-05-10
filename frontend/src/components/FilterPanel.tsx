@@ -15,12 +15,12 @@ const FILTER_GROUPS = [
   },
   {
     key: "scene_type",
-    label: "Department use",
+    label: "Photo type",
     options: ["portrait", "event", "documentary", "architectural", "interior"],
   },
   {
     key: "lighting",
-    label: "Image condition",
+    label: "Lighting",
     options: ["studio", "soft_diffused", "mixed", "low_light"],
   },
 ] as const;

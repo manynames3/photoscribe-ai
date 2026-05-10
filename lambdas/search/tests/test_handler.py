@@ -421,7 +421,9 @@ def test_review_queue_requires_reviewer_and_returns_pending_assets(monkeypatch) 
             return "https://signed.example/pending.jpg"
 
     class FakeDynamoDBClient:
-        def scan(self, **_kwargs) -> dict[str, object]:
+        def query(self, **kwargs) -> dict[str, object]:
+            assert kwargs["IndexName"] == "review-status-index"
+            assert kwargs["KeyConditionExpression"] == "review_status = :status"
             return {
                 "Items": [
                     {

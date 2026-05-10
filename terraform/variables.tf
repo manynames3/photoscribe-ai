@@ -52,7 +52,7 @@ variable "embed_model_id" {
 variable "enable_api_auth" {
   description = "Whether API Gateway requires Cognito JWT authentication for the asset API."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "library_role_names" {
@@ -64,7 +64,7 @@ variable "library_role_names" {
 variable "default_asset_review_status" {
   description = "Initial review status assigned to newly indexed assets."
   type        = string
-  default     = "approved"
+  default     = "pending_review"
 
   validation {
     condition     = contains(["approved", "pending_review", "rejected"], var.default_asset_review_status)
@@ -92,7 +92,7 @@ variable "default_asset_allowed_groups" {
 variable "missing_asset_policy_default" {
   description = "Search behavior for assets that do not yet have a DynamoDB policy row."
   type        = string
-  default     = "allow"
+  default     = "deny"
 
   validation {
     condition     = contains(["allow", "deny"], var.missing_asset_policy_default)
@@ -129,4 +129,10 @@ variable "ingest_event_source_max_concurrency" {
   description = "Maximum concurrent ingest Lambda invokes from the SQS event source. Keeps image indexing from starving upload/search API capacity."
   type        = number
   default     = 2
+}
+
+variable "enable_operational_alarms" {
+  description = "Whether to provision low-cost CloudWatch alarms for Lambda, API Gateway, and SQS failures."
+  type        = bool
+  default     = true
 }

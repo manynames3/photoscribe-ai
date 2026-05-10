@@ -36,7 +36,7 @@ async function sha256File(file: File) {
 
 function statusText(item: UploadQueueItem) {
   if (item.status === "done") {
-    return "indexing started";
+    return "getting photos ready";
   }
 
   if (item.status === "duplicate") {
@@ -44,7 +44,7 @@ function statusText(item: UploadQueueItem) {
   }
 
   if (item.status === "hashing") {
-    return "checking duplicate";
+    return "checking for duplicates";
   }
 
   return item.status;
@@ -139,12 +139,11 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
   return (
     <section className="upload-panel">
       <div className="upload-copy">
-        <p className="sidebar-label">Media intake</p>
-        <h2>Add approved hospital assets</h2>
+        <p className="sidebar-label">Upload</p>
+        <h2>Add hospital photos</h2>
         <p>
-          Drag in department-approved JPEG, PNG, or WebP files. The browser uploads directly to
-          private S3 with a short-lived signed URL, skips exact duplicates by content hash, then
-          queues each new image for AI metadata extraction and policy indexing.
+          Drag in approved JPEG, PNG, or WebP files. CareFrame checks for exact duplicates,
+          then prepares each new photo so staff can find it by search.
         </p>
       </div>
 
@@ -186,8 +185,8 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
       </div>
 
       <label className="upload-token">
-        <span>Access control</span>
-        <input disabled value="Signed-in staff upload via Cognito" />
+        <span>Access</span>
+        <input disabled value="Signed-in staff only" />
       </label>
 
       <div className="upload-actions">
@@ -216,7 +215,7 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
                   {formatBytes(item.file.size)} · {statusText(item)}
                 </span>
                 {item.error ? <p>{item.error}</p> : null}
-                {item.key ? <p>Stored for AI indexing.</p> : null}
+                {item.key ? <p>Photo is being prepared for search.</p> : null}
               </div>
               <div className="upload-progress" aria-label={`${item.file.name} upload progress`}>
                 <span style={{ width: `${item.progress}%` }} />

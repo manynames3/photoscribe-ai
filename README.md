@@ -63,10 +63,11 @@ For the PhotoScribe demo asset workflow, the companion tool reduced multi-megaby
 | AI services | Amazon Bedrock Nova Lite multimodal, Amazon Titan Text Embeddings v2 |
 | Vector search | Amazon S3 Vectors |
 | Storage | Amazon S3, S3 versioning, lifecycle rules, pre-signed URLs |
+| Queueing | Amazon SQS ingest queue with dead-letter queue |
 | Governance | Amazon DynamoDB asset policy table, DynamoDB audit log table with TTL |
 | Infrastructure | Terraform, AWS provider, AWS Cloud Control provider (`awscc`) |
 | CI/CD | GitHub Actions, GitHub repository secrets and variables |
-| Observability | CloudWatch Logs, log retention, SNS billing alarm |
+| Observability | CloudWatch Logs, operational CloudWatch alarms, SNS billing alarm |
 
 ## Engineering Highlights
 
@@ -76,10 +77,10 @@ For the PhotoScribe demo asset workflow, the companion tool reduced multi-megaby
 - **Private-library controls:** Cognito JWT auth protects search, upload, review, and admin routes; Lambda enforces DynamoDB asset policies before issuing signed image URLs.
 - **Audit and review workflow:** Ingest creates pending-review asset policy rows; reviewers classify owner department, usage rights, consent status, expiration, campaign, staff names, location, visibility, and release status.
 - **Safe browser uploads:** The UI hashes files client-side, skips exact duplicates, requests authenticated pre-signed S3 PUT URLs, uploads directly to the private bucket, and sends new assets through the review queue.
-- **Burst protection:** S3 events flow through SQS with capped Lambda event-source concurrency so AI indexing cannot starve interactive API requests during bulk uploads.
+- **Burst protection and failure isolation:** S3 events flow through SQS with capped Lambda event-source concurrency and a dead-letter queue for failed ingest events.
 - **Cost-aware architecture:** S3 Vectors avoids always-on vector infrastructure for a low-volume portfolio workload.
 - **Infrastructure as code:** Terraform defines AWS storage, vector, compute, API, observability, and optional frontend hosting resources.
-- **CI/CD-ready frontend:** Every push can build and deploy the Vite frontend to Cloudflare Pages using a GitHub Actions secret for Cloudflare deploy access.
+- **CI/CD-ready frontend:** Every push runs frontend tests, builds the Vite app, and deploys to Cloudflare Pages using a GitHub Actions secret for Cloudflare deploy access.
 - **Public repo secret handling:** deploy credentials live in GitHub Actions secrets; only public values such as `VITE_API_URL` are exposed to the browser.
 
 ## Architecture
@@ -98,12 +99,13 @@ flowchart LR
     search --> vectors["S3 Vectors<br/>photos index"]
     search --> photos["S3 Photo Bucket<br/>pre-signed URLs"]
     search --> governance["DynamoDB<br/>asset policy + audit"]
-    ui --> upload["POST /uploads/presign<br/>owner upload token"]
+    ui --> upload["POST /uploads/presign<br/>signed-in staff"]
     upload --> photos
 
     uploader["Photo upload"] --> photos
     photos --> events["S3 EventBridge notification"]
     events --> queue["SQS ingest queue<br/>concurrency cap"]
+    queue --> dlq["SQS dead-letter queue<br/>failed ingest events"]
     queue --> ingest["Ingest Lambda<br/>Python 3.12"]
     ingest --> nova["Bedrock<br/>Nova Lite multimodal"]
     ingest --> embed
@@ -219,6 +221,7 @@ To seed photos after deploy:
 Automated checks available in the repo:
 
 - `npm run build` in `frontend/`
+- `npm test` in `frontend/`
 - `PYTHONPATH=. pytest lambdas -v --cov=lambdas --cov-report=term-missing`
 - `terraform fmt -check -recursive`
 - `terraform validate`
@@ -244,9 +247,10 @@ Manual smoke test:
 - Search audit records are written to DynamoDB with TTL-based retention.
 - GitHub Actions uses secrets for deployment credentials.
 - CloudWatch log groups use retention policies.
-- A development billing alarm is provisioned through Terraform.
+- Terraform defaults require Cognito auth, send new assets to `pending_review`, and deny search access to assets without policy rows.
+- Development billing and operational failure alarms are provisioned through Terraform.
 
-Current privacy limitation: existing assets indexed before the review workflow may need backfilled policy fields before setting `missing_asset_policy_default = "deny"`. Newly uploaded assets enter `pending_review` by default.
+Current privacy limitation: legacy assets indexed before the review workflow need backfilled policy rows before they can appear when `missing_asset_policy_default = "deny"`. Newly uploaded assets enter `pending_review` by default.
 
 ## Cost Model
 

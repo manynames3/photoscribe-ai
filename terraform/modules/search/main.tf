@@ -105,10 +105,14 @@ data "aws_iam_policy_document" "logs" {
   statement {
     actions = [
       "dynamodb:GetItem",
+      "dynamodb:Query",
       "dynamodb:Scan",
       "dynamodb:UpdateItem",
     ]
-    resources = [var.asset_policy_table_arn]
+    resources = [
+      var.asset_policy_table_arn,
+      "${var.asset_policy_table_arn}/index/review-status-index",
+    ]
   }
 
   statement {
@@ -166,6 +170,7 @@ resource "aws_lambda_function" "this" {
       MAX_VECTOR_DISTANCE      = tostring(var.max_vector_distance)
       MISSING_POLICY_DEFAULT   = var.missing_asset_policy_default
       PHOTO_BUCKET_NAME        = var.photo_bucket_name
+      REVIEW_STATUS_INDEX_NAME = "review-status-index"
       SIGNED_URL_TTL_SECONDS   = "900"
       UPLOAD_TOKEN_SHA256      = var.upload_token_sha256
       UPLOAD_URL_TTL_SECONDS   = "900"

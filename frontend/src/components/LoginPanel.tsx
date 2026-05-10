@@ -47,7 +47,7 @@ export function LoginPanel({ authSession, onSignIn, onSignOut }: LoginPanelProps
         <div>
           <p className="sidebar-label">Signed in</p>
           <h2>{authSession.email || "Hospital user"}</h2>
-          <p>{authSession.groups.length ? authSession.groups.join(", ") : "No role groups assigned"}</p>
+          <p>{authSession.groups.length ? authSession.groups.join(", ") : "No team assigned"}</p>
         </div>
         <button className="clear-filters" onClick={onSignOut} type="button">
           Sign out
@@ -60,8 +60,8 @@ export function LoginPanel({ authSession, onSignIn, onSignOut }: LoginPanelProps
     <section className="login-panel">
       <div>
         <p className="sidebar-label">Staff access</p>
-        <h2>Sign in to manage hospital assets</h2>
-        <p>Search, upload, review, and curate media with Cognito-backed role controls.</p>
+        <h2>Sign in to manage hospital photos</h2>
+        <p>Use your staff account to upload photos, review permissions, and update searchable details.</p>
       </div>
 
       <form className="login-form" onSubmit={handleSubmit}>
@@ -80,7 +80,7 @@ export function LoginPanel({ authSession, onSignIn, onSignOut }: LoginPanelProps
           <input
             autoComplete="current-password"
             onChange={(event) => setPassword(event.target.value)}
-            placeholder="Cognito password"
+            placeholder="Staff password"
             type="password"
             value={password}
           />

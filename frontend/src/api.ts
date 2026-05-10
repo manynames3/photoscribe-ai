@@ -263,7 +263,7 @@ export async function searchPhotos(query: string, filters: SearchFilters): Promi
     const matchingPreviewResults = PREVIEW_RESULTS.filter((result) => matchesPreviewQuery(result, trimmedQuery));
 
     return {
-      message: "Demo catalog. Add VITE_API_URL to use the deployed semantic search API.",
+      message: "Showing example photos.",
       mode: "preview",
       query: trimmedQuery,
       results: applyFilters(matchingPreviewResults, filters),
@@ -294,7 +294,7 @@ export async function searchPhotos(query: string, filters: SearchFilters): Promi
   const payload = (await response.json()) as ApiSearchResponse;
 
   return {
-    message: payload.message ?? "Connected to the deployed semantic search API.",
+    message: payload.message ?? "Search complete.",
     mode: "api",
     query: payload.query ?? trimmedQuery,
     results: normalizeApiResults(payload.results ?? []),
@@ -316,7 +316,7 @@ export async function updateAssetTags(
 ): Promise<AssetTagsUpdate> {
   const baseUrl = apiBaseUrl();
   if (!baseUrl) {
-    throw new Error("Connect VITE_API_URL before saving curator tags.");
+    throw new Error("Saving photo details is not set up for this site yet.");
   }
 
   const response = await fetch(`${baseUrl}/assets/tags`, {
@@ -366,7 +366,7 @@ export async function getReviewQueue(): Promise<PhotoResult[]> {
 export async function updateAssetPolicy(update: AssetPolicyUpdate): Promise<AssetPolicyUpdate> {
   const baseUrl = apiBaseUrl();
   if (!baseUrl) {
-    throw new Error("Connect VITE_API_URL before saving asset policy.");
+    throw new Error("Saving review details is not set up for this site yet.");
   }
 
   const response = await fetch(`${baseUrl}/assets/policy`, {
@@ -425,7 +425,7 @@ export async function updateAssetPolicy(update: AssetPolicyUpdate): Promise<Asse
 export async function inviteAdminUser(email: string, groups: string[]): Promise<AdminUserInvite> {
   const baseUrl = apiBaseUrl();
   if (!baseUrl) {
-    throw new Error("Connect VITE_API_URL before inviting users.");
+    throw new Error("Staff invitations are not set up for this site yet.");
   }
 
   const response = await fetch(`${baseUrl}/admin/users`, {
@@ -493,7 +493,7 @@ async function requestUploadPresign(
     const payload = (await response.json().catch(() => ({}))) as Partial<UploadPresignResponse> & { error?: string };
     if (response.ok) {
       if (!payload.key || !payload.bucket) {
-        throw new Error("Upload API returned an invalid duplicate response.");
+        throw new Error("Upload could not check for duplicates. Try again.");
       }
 
       if (payload.duplicate) {
@@ -501,7 +501,7 @@ async function requestUploadPresign(
       }
 
       if (!payload.upload_url || !payload.headers || payload.method !== "PUT") {
-        throw new Error("Upload API returned an invalid presigned URL response.");
+        throw new Error("Upload could not start. Try again.");
       }
 
       return payload as UploadPresignResponse;
@@ -544,10 +544,10 @@ function putFileWithProgress(
         resolve();
         return;
       }
-      reject(new Error(`S3 upload failed with status ${request.status}.`));
+      reject(new Error(`Photo upload failed with status ${request.status}.`));
     };
 
-    request.onerror = () => reject(new Error("S3 upload failed."));
+    request.onerror = () => reject(new Error("Photo upload failed."));
     request.send(file);
   });
 }
@@ -559,7 +559,7 @@ export async function uploadPhoto(
 ): Promise<UploadResult> {
   const baseUrl = apiBaseUrl();
   if (!baseUrl) {
-    throw new Error("Upload requires VITE_API_URL to point at the deployed API.");
+    throw new Error("Photo uploads are not set up for this site yet.");
   }
 
   const payload = await requestUploadPresign(file, checksumSha256);

@@ -52,3 +52,108 @@ resource "aws_cloudwatch_metric_alarm" "billing" {
   }
 }
 
+resource "aws_cloudwatch_metric_alarm" "ingest_lambda_errors" {
+  count = var.enable_operational_alarms ? 1 : 0
+
+  alarm_actions       = [aws_sns_topic.billing.arn]
+  alarm_description   = "Alerts when the ingest Lambda records one or more errors."
+  alarm_name          = "${var.ingest_lambda_name}-errors"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 1
+  treat_missing_data  = "notBreaching"
+  tags                = var.tags
+
+  dimensions = {
+    FunctionName = var.ingest_lambda_name
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "search_lambda_errors" {
+  count = var.enable_operational_alarms ? 1 : 0
+
+  alarm_actions       = [aws_sns_topic.billing.arn]
+  alarm_description   = "Alerts when the search Lambda records one or more errors."
+  alarm_name          = "${var.search_lambda_name}-errors"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 1
+  treat_missing_data  = "notBreaching"
+  tags                = var.tags
+
+  dimensions = {
+    FunctionName = var.search_lambda_name
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "search_api_5xx" {
+  count = var.enable_operational_alarms ? 1 : 0
+
+  alarm_actions       = [aws_sns_topic.billing.arn]
+  alarm_description   = "Alerts when the HTTP API returns one or more 5xx responses."
+  alarm_name          = "${var.search_lambda_name}-api-5xx"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "5xx"
+  namespace           = "AWS/ApiGateway"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 1
+  treat_missing_data  = "notBreaching"
+  tags                = var.tags
+
+  dimensions = {
+    ApiId = var.search_api_id
+    Stage = var.search_api_stage_name
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "ingest_queue_age" {
+  count = var.enable_operational_alarms ? 1 : 0
+
+  alarm_actions       = [aws_sns_topic.billing.arn]
+  alarm_description   = "Alerts when ingest messages wait in SQS for more than 15 minutes."
+  alarm_name          = "${var.ingest_queue_name}-oldest-message-age"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 2
+  metric_name         = "ApproximateAgeOfOldestMessage"
+  namespace           = "AWS/SQS"
+  period              = 300
+  statistic           = "Maximum"
+  threshold           = 900
+  treat_missing_data  = "notBreaching"
+  tags                = var.tags
+
+  dimensions = {
+    QueueName = var.ingest_queue_name
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "ingest_dlq_messages" {
+  count = var.enable_operational_alarms ? 1 : 0
+
+  alarm_actions       = [aws_sns_topic.billing.arn]
+  alarm_description   = "Alerts when failed ingest events land in the dead-letter queue."
+  alarm_name          = "${var.ingest_dlq_name}-messages-visible"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "ApproximateNumberOfMessagesVisible"
+  namespace           = "AWS/SQS"
+  period              = 300
+  statistic           = "Maximum"
+  threshold           = 1
+  treat_missing_data  = "notBreaching"
+  tags                = var.tags
+
+  dimensions = {
+    QueueName = var.ingest_dlq_name
+  }
+}

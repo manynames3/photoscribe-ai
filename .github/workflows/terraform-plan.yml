@@ -24,12 +24,32 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
 
+      - name: Check Terraform plan configuration
+        id: config
+        env:
+          AWS_PLAN_ROLE_ARN: ${{ secrets.AWS_PLAN_ROLE_ARN }}
+          TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+          TF_LOCK_TABLE: ${{ secrets.TF_LOCK_TABLE }}
+        run: |
+          ready=true
+
+          for name in AWS_PLAN_ROLE_ARN TF_STATE_BUCKET TF_LOCK_TABLE; do
+            if [ -z "${!name}" ]; then
+              echo "::notice::Skipping AWS-backed Terraform plan because $name is not configured."
+              ready=false
+            fi
+          done
+
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+
       - uses: aws-actions/configure-aws-credentials@v4
+        if: steps.config.outputs.ready == 'true'
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ secrets.AWS_PLAN_ROLE_ARN }}
 
       - name: Terraform init
+        if: steps.config.outputs.ready == 'true'
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
           terraform init \
@@ -37,6 +57,11 @@ jobs:
             -backend-config="key=photoscribe/dev/terraform.tfstate" \
             -backend-config="region=${{ env.AWS_REGION }}" \
             -backend-config="dynamodb_table=${{ secrets.TF_LOCK_TABLE }}"
+
+      - name: Terraform init without backend
+        if: steps.config.outputs.ready != 'true'
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init -backend=false
 
       - name: Terraform fmt
         working-directory: ${{ env.TF_WORKING_DIR }}
@@ -47,14 +72,26 @@ jobs:
         run: terraform validate
 
       - name: Terraform plan
+        if: steps.config.outputs.ready == 'true'
         working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform plan -var-file=envs/dev.tfvars -out=plan.tfplan
+        run: terraform plan -var-file=envs/dev.tfvars -var-file=envs/dev.cloudflare.tfvars -out=plan.tfplan
 
       - name: Render plan
+        if: steps.config.outputs.ready == 'true'
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform show -no-color plan.tfplan > plan.txt
 
+      - name: Upload plan artifact
+        if: steps.config.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: |
+            terraform/plan.tfplan
+            terraform/plan.txt
+
       - name: Comment plan on PR
+        if: steps.config.outputs.ready == 'true'
         uses: actions/github-script@v7
         with:
           script: |
@@ -83,4 +120,3 @@ jobs:
                 body: content,
               });
             }
-

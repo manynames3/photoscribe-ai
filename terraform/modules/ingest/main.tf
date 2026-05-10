@@ -29,10 +29,20 @@ locals {
 }
 
 resource "aws_sqs_queue" "ingest" {
-  name                       = "${var.lambda_name}-queue"
-  message_retention_seconds  = 345600
+  name                      = "${var.lambda_name}-queue"
+  message_retention_seconds = 345600
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.ingest_dlq.arn
+    maxReceiveCount     = 3
+  })
   tags                       = var.tags
   visibility_timeout_seconds = 180
+}
+
+resource "aws_sqs_queue" "ingest_dlq" {
+  name                      = "${var.lambda_name}-dlq"
+  message_retention_seconds = 1209600
+  tags                      = var.tags
 }
 
 resource "terraform_data" "package" {
