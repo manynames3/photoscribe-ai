@@ -25,6 +25,31 @@ def test_parse_photo_metadata_rejects_invalid_json() -> None:
         parse_photo_metadata("not json")
 
 
+def test_parse_photo_metadata_normalizes_model_enum_drift() -> None:
+    payload = {
+        "alt_text": "Construction worker outside a hospital building.",
+        "aspect_ratio": "wide",
+        "description": "A construction worker stands outside a hospital building under renovation. The scene shows the building facade, temporary barriers, and daytime site activity.",
+        "dominant_colors": ["blue", "gray"],
+        "lighting": "natural",
+        "mood": "professional",
+        "objects_detected": ["worker", "building", "barriers"],
+        "people_count": 1,
+        "scene_type": "construction",
+        "seo_caption": "Facilities renovation documentation outside a hospital building.",
+        "subjects": ["construction worker", "hospital building"],
+        "time_of_day": "daytime",
+    }
+
+    metadata = parse_photo_metadata(json.dumps(payload))
+
+    assert metadata.aspect_ratio == "landscape"
+    assert metadata.lighting == "soft_diffused"
+    assert metadata.mood == "confident"
+    assert metadata.scene_type == "architectural"
+    assert metadata.time_of_day == "unknown"
+
+
 def test_split_metadata_produces_filterable_and_non_filterable() -> None:
     raw_json = FIXTURE_PATH.read_text(encoding="utf-8")
     metadata = parse_photo_metadata(raw_json)
