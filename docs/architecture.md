@@ -154,6 +154,7 @@ A query like `doctor reviewing results` can match images described as `physician
 - CloudWatch Logs are the first place to inspect ingest and search failures.
 - API Gateway throttling is configured in Terraform.
 - Terraform provisions a development billing alarm plus targeted operational alarms for Lambda errors, API 5xx responses, SQS queue age, and DLQ messages.
+- Alarm delivery uses SNS email subscriptions. After `terraform apply`, the email owner must confirm the AWS SNS subscription before alarm emails are delivered.
 - DynamoDB audit logs are TTL-managed; they are useful for demo-scale traceability, not a replacement for centralized SIEM retention.
 - GitHub Actions runs Lambda tests, frontend unit tests, frontend builds, Terraform validation, Terraform plans, and Cloudflare Pages deployment.
 - `git diff --check`, Terraform formatting, Lambda tests, and frontend build should pass before changes are pushed.

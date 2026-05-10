@@ -184,6 +184,13 @@ terraform plan -var-file=envs/dev.tfvars -var-file=envs/dev.cloudflare.tfvars
 terraform apply
 ```
 
+Operational alert confirmation:
+
+- Terraform creates an SNS email subscription for `alert_email`.
+- AWS sends an `AWS Notification - Subscription Confirmation` email from `no-reply@sns.amazonaws.com`.
+- The recipient must click `Confirm subscription` before billing and operational alarm emails can be delivered.
+- Until confirmed, the subscription remains `PendingConfirmation` in SNS even though the alarms exist.
+
 Useful Terraform outputs:
 
 - `photo_bucket_name`
@@ -274,13 +281,15 @@ The architecture is designed for low-volume portfolio usage. The main cost drive
 
 **Cloudflare deploy failures:** confirm `CLOUDFLARE_API_TOKEN` is a GitHub Actions secret with Cloudflare Pages edit permission.
 
+**No alarm emails:** confirm the SNS subscription email was accepted. AWS sends a confirmation email to `alert_email`; alarm notifications are not delivered until the recipient confirms the subscription.
+
 ## Future Work
 
 - Add enterprise SSO/SAML and richer user lifecycle workflows.
 - Add automated moderation with Amazon Rekognition or a Bedrock guardrail workflow before human review.
 - Generate and serve responsive thumbnails.
 - Add a re-indexing workflow for prompt/model changes.
-- Add CloudWatch dashboards and alarms for API 5xx, Lambda errors, and ingest latency.
+- Add CloudWatch dashboards and latency SLOs for API and ingest performance.
 - Add a public runbook for incident response and operations.
 
 ## License

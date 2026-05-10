@@ -10,11 +10,12 @@ A production-style cloud portfolio project should show how failures are surfaced
 
 ## Decision
 
-Use SQS redrive to move failed ingest events to a dead-letter queue after retries. Add Terraform-managed CloudWatch alarms for Lambda errors, API Gateway 5xx responses, SQS queue age, and dead-letter queue messages. Reuse the existing SNS email topic used by the billing alarm.
+Use SQS redrive to move failed ingest events to a dead-letter queue after retries. Add Terraform-managed CloudWatch alarms for Lambda errors, API Gateway 5xx responses, SQS queue age, and dead-letter queue messages. Reuse the existing SNS email topic used by the billing alarm. Require the email owner to confirm the AWS SNS subscription before alarm delivery is considered active.
 
 ## Consequences
 
 - Failed ingest events are retained for inspection instead of being retried forever or silently dropped.
 - The repo demonstrates operational awareness without adding always-on infrastructure.
 - Alarm notifications are intentionally coarse-grained for portfolio scale.
+- Terraform can create the SNS subscription request, but a human must confirm email delivery out-of-band.
 - A production enterprise deployment would likely add centralized log analytics, tracing, dashboards, and incident routing.
