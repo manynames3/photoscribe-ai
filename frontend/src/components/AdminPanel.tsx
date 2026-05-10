@@ -45,7 +45,7 @@ export function AdminPanel({ canAdmin }: AdminPanelProps) {
       <div>
         <p className="sidebar-label">Admin</p>
         <h2>User access</h2>
-        <p>Invite hospital staff and assign role groups used by API authorization and asset policy checks.</p>
+        <p>Invite hospital staff and choose what kind of photo work they can do.</p>
       </div>
 
       <form className="login-form" onSubmit={handleSubmit}>

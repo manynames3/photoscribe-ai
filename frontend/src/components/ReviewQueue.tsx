@@ -10,7 +10,7 @@ type ReviewQueueProps = {
 
 export function ReviewQueue({ canReview, onOpen }: ReviewQueueProps) {
   const [items, setItems] = useState<PhotoResult[]>([]);
-  const [status, setStatus] = useState("Load newly uploaded assets that need review before release.");
+  const [status, setStatus] = useState("Load newly uploaded photos that need review before staff use them.");
   const [isLoading, setIsLoading] = useState(false);
 
   if (!canReview) {
@@ -24,7 +24,7 @@ export function ReviewQueue({ canReview, onOpen }: ReviewQueueProps) {
     try {
       const results = await getReviewQueue();
       setItems(results);
-      setStatus(`${results.length} asset${results.length === 1 ? "" : "s"} awaiting review.`);
+      setStatus(`${results.length} photo${results.length === 1 ? "" : "s"} waiting for review.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Review queue failed.");
     } finally {
@@ -37,7 +37,7 @@ export function ReviewQueue({ canReview, onOpen }: ReviewQueueProps) {
       <div className="sidebar-header">
         <div>
           <p className="sidebar-label">Review queue</p>
-          <h2>Pending assets</h2>
+          <h2>Photos waiting for review</h2>
           <p>{status}</p>
         </div>
         <button className="clear-filters" disabled={isLoading} onClick={() => void loadQueue()} type="button">

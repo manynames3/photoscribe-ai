@@ -16,7 +16,7 @@ Low-volume supporting costs:
 - Lambda invocations and duration for ingest/search.
 - HTTP API Gateway requests.
 - DynamoDB on-demand reads/writes for asset policies and audit records.
-- CloudWatch logs and metrics.
+- CloudWatch logs, metrics, and a small set of targeted operational alarms.
 - Billing alarm SNS notifications.
 - Cognito User Pool usage only when `enable_api_auth = true`.
 
@@ -24,8 +24,9 @@ Cost controls in this repo:
 
 - No always-on servers or managed vector database clusters.
 - Private S3 objects are served through short-lived signed URLs.
+- S3 ingest events are buffered through SQS with a dead-letter queue instead of adding an always-on worker.
 - Audit logs use DynamoDB TTL so records expire automatically.
-- Terraform provisions a development billing alarm.
+- Terraform provisions a development billing alarm and targeted failure alarms instead of an always-on dashboard stack.
 - The public demo keeps the dataset intentionally small.
 
 ## Image Model Choice

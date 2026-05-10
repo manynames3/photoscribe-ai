@@ -10,7 +10,16 @@ type PhotoModalProps = {
   photo: PhotoResult | null;
 };
 
+type DossierTab = "overview" | "permissions" | "people" | "edit";
+
 const POLICY_GROUPS = ["admin", "reviewer", "marketing", "hr", "compliance", "facilities"];
+
+const DOSSIER_TABS: Array<{ key: DossierTab; label: string }> = [
+  { key: "overview", label: "Overview" },
+  { key: "permissions", label: "Permissions" },
+  { key: "people", label: "People & tags" },
+  { key: "edit", label: "Edit details" },
+];
 
 function labelize(value: string | undefined, fallback = "Not specified") {
   if (!value) {
@@ -25,15 +34,15 @@ function approvalCopy(reviewStatus: string | undefined) {
     case "approved":
       return "Approved for department use";
     case "pending_review":
-      return "Needs compliance review";
+      return "Needs review";
     case "rejected":
       return "Do not use externally";
     case "missing_policy":
-      return "Policy record needed";
+      return "Review details needed";
     case "unmanaged":
-      return "Not yet governed";
+      return "Not reviewed yet";
     default:
-      return "Review status unavailable";
+      return "Review status missing";
   }
 }
 
@@ -44,7 +53,7 @@ function accessCopy(visibility: string | undefined) {
     case "library":
       return "Shared hospital library";
     default:
-      return "Library access not classified";
+      return "Access not set";
   }
 }
 
@@ -76,10 +85,10 @@ function recommendedUse(photo: PhotoResult) {
   }
 
   if (photo.reviewStatus === "approved") {
-    return "Approved library asset for presentations, intranet, and department requests.";
+    return "Approved for presentations, intranet, and department requests.";
   }
 
-  return "Useful candidate asset; confirm policy status before external publication.";
+  return "Check review details before sharing outside your department.";
 }
 
 function joinValues(values: string[] | undefined) {
@@ -94,6 +103,7 @@ function splitValues(value: string) {
 }
 
 export function PhotoModal({ authSession, canCurate, onClose, photo }: PhotoModalProps) {
+  const [activeDossierTab, setActiveDossierTab] = useState<DossierTab>("overview");
   const [campaign, setCampaign] = useState("");
   const [consentStatus, setConsentStatus] = useState("missing");
   const [curatorTags, setCuratorTags] = useState("");
@@ -144,6 +154,7 @@ export function PhotoModal({ authSession, canCurate, onClose, photo }: PhotoModa
     setStaffNames(joinValues(photo.staffNames));
     setUsageRights(photo.usageRights ?? "unknown");
     setVisibility(photo.visibility ?? "library");
+    setActiveDossierTab("overview");
     setTagStatus("");
   }, [photo]);
 
@@ -159,7 +170,7 @@ export function PhotoModal({ authSession, canCurate, onClose, photo }: PhotoModa
     }
 
     if (!authSession) {
-      setTagStatus("Sign in before updating asset policy.");
+      setTagStatus("Sign in before updating photo details.");
       return;
     }
 
@@ -192,7 +203,7 @@ export function PhotoModal({ authSession, canCurate, onClose, photo }: PhotoModa
       setStaffNames(joinValues(result.staffNames));
       setUsageRights(result.usageRights);
       setVisibility(result.visibility);
-      setTagStatus("Asset policy saved. Search, review, and role access now use these fields.");
+      setTagStatus("Photo details saved.");
     } catch (error) {
       setTagStatus(error instanceof Error ? error.message : "Tag update failed.");
     } finally {
@@ -227,77 +238,131 @@ export function PhotoModal({ authSession, canCurate, onClose, photo }: PhotoModa
         </div>
 
         <div className="modal-copy">
-          <div className="photo-card-meta">
-            <span className="meta-pill">{photo.mood}</span>
-            <span className="meta-subtle">{labelize(photo.sceneType)}</span>
-            <span className="meta-subtle">{approvalCopy(photo.reviewStatus)}</span>
+          <div className="dossier-header">
+            <div className="photo-card-meta">
+              <span className="meta-pill">{approvalCopy(photo.reviewStatus)}</span>
+              <span className="meta-subtle">{labelize(photo.sceneType)}</span>
+              <span className="meta-subtle">{accessCopy(photo.visibility)}</span>
+            </div>
+
+            <h3>{photo.seoCaption || photo.description}</h3>
+            <p>{photo.description}</p>
           </div>
 
-          <h3>{photo.seoCaption || photo.description}</h3>
-          <p>{photo.description}</p>
-
-          <div className="use-guidance">
-            <div>
-              <span>Recommended use</span>
-              <strong>{recommendedUse(photo)}</strong>
-            </div>
-            <div>
-              <span>Best-fit teams</span>
-              <strong>{departmentFit(photo)}</strong>
-            </div>
+          <div className="dossier-tabs" aria-label="Photo details sections">
+            {DOSSIER_TABS.filter((tab) => tab.key !== "edit" || canCurate).map((tab) => (
+              <button
+                aria-pressed={activeDossierTab === tab.key}
+                className={activeDossierTab === tab.key ? "is-active" : ""}
+                key={tab.key}
+                onClick={() => setActiveDossierTab(tab.key)}
+                type="button"
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
-          <dl className="metadata-grid">
-            <div>
-              <dt>Release readiness</dt>
-              <dd>{approvalCopy(photo.reviewStatus)}</dd>
-            </div>
-            <div>
-              <dt>Access level</dt>
-              <dd>{accessCopy(photo.visibility)}</dd>
-            </div>
-            <div>
-              <dt>People visible</dt>
-              <dd>{typeof photo.peopleCount === "number" ? photo.peopleCount : "Not counted"}</dd>
-            </div>
-            <div>
-              <dt>Asset type</dt>
-              <dd>{labelize(photo.sceneType)}</dd>
-            </div>
-            <div>
-              <dt>Accessibility caption</dt>
-              <dd>{photo.altText}</dd>
-            </div>
-            <div>
-              <dt>Content labels</dt>
-              <dd>{photo.subjects?.length ? photo.subjects.slice(0, 5).join(", ") : labelize(photo.lighting)}</dd>
-            </div>
-            <div>
-              <dt>Department</dt>
-              <dd>{photo.ownerDepartment || "Unassigned"}</dd>
-            </div>
-            <div>
-              <dt>Usage rights</dt>
-              <dd>{labelize(photo.usageRights)}</dd>
-            </div>
-            <div>
-              <dt>Consent</dt>
-              <dd>{labelize(photo.consentStatus)}</dd>
-            </div>
-            <div>
-              <dt>Campaign</dt>
-              <dd>{photo.campaign || "None assigned"}</dd>
-            </div>
-          </dl>
+          {activeDossierTab === "overview" ? (
+            <div className="dossier-section">
+              <div className="use-guidance">
+                <div>
+                  <span>Recommended use</span>
+                  <strong>{recommendedUse(photo)}</strong>
+                </div>
+                <div>
+                  <span>Best-fit teams</span>
+                  <strong>{departmentFit(photo)}</strong>
+                </div>
+              </div>
 
-          {canCurate ? (
+              <dl className="metadata-grid">
+                <div>
+                  <dt>Review status</dt>
+                  <dd>{approvalCopy(photo.reviewStatus)}</dd>
+                </div>
+                <div>
+                  <dt>Access level</dt>
+                  <dd>{accessCopy(photo.visibility)}</dd>
+                </div>
+                <div>
+                  <dt>Owner department</dt>
+                  <dd>{photo.ownerDepartment || "Unassigned"}</dd>
+                </div>
+                <div>
+                  <dt>Campaign</dt>
+                  <dd>{photo.campaign || "None assigned"}</dd>
+                </div>
+              </dl>
+            </div>
+          ) : null}
+
+          {activeDossierTab === "permissions" ? (
+            <dl className="metadata-grid dossier-section">
+              <div>
+                <dt>Review status</dt>
+                <dd>{approvalCopy(photo.reviewStatus)}</dd>
+              </div>
+              <div>
+                <dt>Who can use it</dt>
+                <dd>{accessCopy(photo.visibility)}</dd>
+              </div>
+              <div>
+                <dt>Consent</dt>
+                <dd>{labelize(photo.consentStatus)}</dd>
+              </div>
+              <div>
+                <dt>Usage rights</dt>
+                <dd>{labelize(photo.usageRights)}</dd>
+              </div>
+              <div>
+                <dt>Expiration</dt>
+                <dd>{photo.expirationDate || "No expiration assigned"}</dd>
+              </div>
+              <div>
+                <dt>Location</dt>
+                <dd>{photo.location || "Location not assigned"}</dd>
+              </div>
+            </dl>
+          ) : null}
+
+          {activeDossierTab === "people" ? (
+            <dl className="metadata-grid dossier-section">
+              <div>
+                <dt>People visible</dt>
+                <dd>{typeof photo.peopleCount === "number" ? photo.peopleCount : "Not counted"}</dd>
+              </div>
+              <div>
+                <dt>Staff names</dt>
+                <dd>{photo.staffNames?.length ? photo.staffNames.join(", ") : "No staff assigned"}</dd>
+              </div>
+              <div>
+                <dt>Photo type</dt>
+                <dd>{labelize(photo.sceneType)}</dd>
+              </div>
+              <div>
+                <dt>Image condition</dt>
+                <dd>{labelize(photo.lighting)}</dd>
+              </div>
+              <div>
+                <dt>Accessibility caption</dt>
+                <dd>{photo.altText}</dd>
+              </div>
+              <div>
+                <dt>Content labels</dt>
+                <dd>{photo.subjects?.length ? photo.subjects.slice(0, 8).join(", ") : "No labels assigned"}</dd>
+              </div>
+            </dl>
+          ) : null}
+
+          {canCurate && activeDossierTab === "edit" ? (
           <form className="curator-panel" onSubmit={handleTagSubmit}>
             <div>
-              <p className="sidebar-label">Curator tools</p>
-              <h4>Review and classify asset</h4>
+              <p className="sidebar-label">Photo details</p>
+              <h4>Review and update photo</h4>
               <p>
-                Add human context the AI cannot know, then approve, restrict, or reject the asset
-                before broader department use.
+                Add details the system cannot know, then approve, restrict, or reject the photo
+                before broader staff use.
               </p>
             </div>
 
@@ -392,7 +457,7 @@ export function PhotoModal({ authSession, canCurate, onClose, photo }: PhotoModa
             </div>
 
             <div>
-              <span className="curator-field-label">Allowed roles when restricted</span>
+              <span className="curator-field-label">Who can see restricted photos</span>
               <div className="filter-pill-row">
                 {POLICY_GROUPS.map((group) => (
                   <button
@@ -419,7 +484,7 @@ export function PhotoModal({ authSession, canCurate, onClose, photo }: PhotoModa
             </button>
 
             {tagStatus ? <p className="curator-status">{tagStatus}</p> : null}
-            {photo.source !== "api" ? <p className="curator-status">Tag editing is available on live API assets.</p> : null}
+            {photo.source !== "api" ? <p className="curator-status">Editing is available for private library photos.</p> : null}
           </form>
           ) : null}
         </div>

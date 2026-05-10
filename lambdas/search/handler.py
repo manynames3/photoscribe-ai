@@ -30,6 +30,7 @@ COGNITO_USER_POOL_ID = os.environ.get("COGNITO_USER_POOL_ID", "")
 LIBRARY_ROLE_NAMES = {role.strip() for role in os.environ.get("LIBRARY_ROLE_NAMES", "").split(",") if role.strip()}
 MISSING_POLICY_DEFAULT = os.environ.get("MISSING_POLICY_DEFAULT", "allow").strip().lower()
 PHOTO_BUCKET_NAME = os.environ.get("PHOTO_BUCKET_NAME", "")
+REVIEW_STATUS_INDEX_NAME = os.environ.get("REVIEW_STATUS_INDEX_NAME", "review-status-index")
 SIGNED_URL_TTL_SECONDS = int(os.environ.get("SIGNED_URL_TTL_SECONDS", "900"))
 UPLOAD_TOKEN_SHA256 = os.environ.get("UPLOAD_TOKEN_SHA256", "").strip().lower()
 UPLOAD_URL_TTL_SECONDS = int(os.environ.get("UPLOAD_URL_TTL_SECONDS", "900"))
@@ -542,9 +543,10 @@ def _handle_review_queue(event: dict[str, Any]) -> dict[str, Any]:
 
     params = event.get("queryStringParameters") or {}
     limit = min(max(int(params.get("limit", 24)), 1), 50)
-    response = _dynamodb_client().scan(
+    response = _dynamodb_client().query(
         ExpressionAttributeValues={":status": {"S": "pending_review"}},
-        FilterExpression="review_status = :status",
+        IndexName=REVIEW_STATUS_INDEX_NAME,
+        KeyConditionExpression="review_status = :status",
         Limit=limit,
         TableName=ASSET_POLICY_TABLE_NAME,
     )

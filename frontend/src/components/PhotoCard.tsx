@@ -9,6 +9,14 @@ function labelize(value: string | undefined) {
   return value ? value.replace(/_/g, " ") : "not classified";
 }
 
+function libraryLabel(result: PhotoResult) {
+  if (result.visibility) {
+    return labelize(result.visibility);
+  }
+
+  return result.source === "api" ? "library" : "example";
+}
+
 function policyClass(value: string | undefined) {
   if (value === "approved") {
     return " is-approved";
@@ -71,7 +79,7 @@ export function PhotoCard({ onOpen, result }: PhotoCardProps) {
           </div>
         </dl>
         <div className="photo-card-footer">
-          <span>{labelize(result.visibility ?? (result.source === "api" ? "library" : "preview"))}</span>
+          <span>{libraryLabel(result)}</span>
           <span>{labelize(result.mood)}</span>
         </div>
       </div>

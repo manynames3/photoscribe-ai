@@ -21,6 +21,7 @@ env:
 jobs:
   apply:
     runs-on: ubuntu-latest
+    environment: aws-dev
     steps:
       - name: Check apply configuration
         id: config
@@ -70,7 +71,7 @@ jobs:
       - name: Terraform plan
         if: steps.config.outputs.ready == 'true'
         working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform plan -var-file=envs/dev.tfvars -out=plan.tfplan
+        run: terraform plan -var-file=envs/dev.tfvars -var-file=envs/dev.cloudflare.tfvars -out=plan.tfplan
 
       - name: Terraform apply
         if: steps.config.outputs.ready == 'true'
