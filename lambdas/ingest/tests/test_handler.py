@@ -124,11 +124,36 @@ def test_upsert_asset_policy_preserves_review_decisions(monkeypatch) -> None:
     monkeypatch.setattr(ingest_handler, "DEFAULT_REVIEW_STATUS", "pending_review")
     monkeypatch.setattr(ingest_handler, "DEFAULT_VISIBILITY", "restricted")
 
-    ingest_handler.upsert_asset_policy(bucket="photos", key="image.jpg", metadata=_sample_metadata())
+    ingest_handler.upsert_asset_policy(
+        bucket="photos",
+        key="image.jpg",
+        metadata=_sample_metadata(),
+        thumbnail_key="thumbnails/ab/thumb.webp",
+    )
 
     assert captured["TableName"] == "asset-policy"
     assert captured["Key"] == {"asset_key": {"S": "image.jpg"}}
     assert "if_not_exists(review_status" in str(captured["UpdateExpression"])
     assert "if_not_exists(visibility" in str(captured["UpdateExpression"])
+    assert "thumbnail_key = :thumbnail_key" in str(captured["UpdateExpression"])
     assert captured["ExpressionAttributeValues"][":allowed_groups"]["S"] == "admin,reviewer,employee"
     assert captured["ExpressionAttributeValues"][":people_count"]["N"] == "2"
+    assert captured["ExpressionAttributeValues"][":thumbnail_key"]["S"] == "thumbnails/ab/thumb.webp"
+
+
+def test_ingest_handler_skips_generated_thumbnail(monkeypatch) -> None:
+    def fail_download(*_args: object) -> tuple[bytes, str]:
+        raise AssertionError("generated thumbnails should not be re-ingested")
+
+    monkeypatch.setattr("lambdas.ingest.handler.download_image", fail_download)
+
+    response = handler(
+        {
+            "source": "aws.s3",
+            "detail-type": "Object Created",
+            "detail": {"bucket": {"name": "photos"}, "object": {"key": "thumbnails%2Fab%2Fthumb.webp"}},
+        },
+        None,
+    )
+
+    assert response["statusCode"] == 200

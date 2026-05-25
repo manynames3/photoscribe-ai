@@ -10,6 +10,7 @@ Primary cost drivers:
 - Bedrock Titan Text Embeddings during ingest and search.
 - S3 Vectors storage and query requests.
 - S3 photo object storage.
+- S3 storage and PUT requests for generated WebP thumbnails.
 
 Low-volume supporting costs:
 
@@ -17,6 +18,7 @@ Low-volume supporting costs:
 - HTTP API Gateway requests.
 - DynamoDB on-demand reads/writes for asset policies and audit records.
 - CloudWatch logs, metrics, and a small set of targeted operational alarms.
+- Optional CloudWatch dashboard when `enable_operational_dashboard = true`.
 - Billing alarm SNS notifications.
 - Cognito User Pool usage only when `enable_api_auth = true`.
 
@@ -26,8 +28,9 @@ Cost controls in this repo:
 - Private S3 objects are served through short-lived signed URLs.
 - S3 ingest events are buffered through SQS with a dead-letter queue instead of adding an always-on worker.
 - Audit logs use DynamoDB TTL so records expire automatically.
-- Terraform provisions a development billing alarm and targeted failure alarms instead of an always-on dashboard stack.
-- The public demo keeps the dataset intentionally small.
+- Terraform provisions a development billing alarm and targeted failure alarms by default; the dashboard is optional because dashboards can add a small monthly charge.
+- Generated thumbnails are small WebP derivatives and avoid repeatedly loading large originals in the UI.
+- The public preview keeps the dataset intentionally small.
 
 ## Image Model Choice
 

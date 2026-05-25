@@ -14,7 +14,7 @@ Host the public frontend on Cloudflare Pages and deploy it through GitHub Action
 
 ## Consequences
 
-- The public demo is inexpensive and easy to share.
+- The public preview is inexpensive and easy to share.
 - GitHub Actions owns the deployment flow.
 - The Cloudflare API token must be stored as a GitHub Actions secret.
 - A direct-upload Pages project cannot be converted into Cloudflare Git integration later.

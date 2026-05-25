@@ -162,16 +162,18 @@ module "observability" {
     aws.billing = aws.billing
   }
 
-  alert_email               = var.alert_email
-  billing_alarm_threshold   = var.billing_alarm_threshold
-  enable_operational_alarms = var.enable_operational_alarms
-  ingest_dlq_name           = module.ingest.dlq_name
-  ingest_lambda_name        = module.ingest.lambda_name
-  ingest_log_group_name     = local.ingest_log_group_name
-  ingest_queue_name         = module.ingest.queue_name
-  search_api_id             = module.search.api_id
-  search_api_stage_name     = module.search.stage_name
-  search_lambda_name        = module.search.lambda_name
-  search_log_group_name     = local.search_log_group_name
-  tags                      = local.common_tags
+  alert_email                  = var.alert_email
+  billing_alarm_threshold      = var.billing_alarm_threshold
+  enable_operational_dashboard = var.enable_operational_dashboard
+  enable_operational_alarms    = var.enable_operational_alarms
+  ingest_dlq_name              = module.ingest.dlq_name
+  ingest_lambda_name           = module.ingest.lambda_name
+  ingest_log_group_name        = local.ingest_log_group_name
+  ingest_queue_name            = module.ingest.queue_name
+  region                       = var.region
+  search_api_id                = module.search.api_id
+  search_api_stage_name        = module.search.stage_name
+  search_lambda_name           = module.search.lambda_name
+  search_log_group_name        = local.search_log_group_name
+  tags                         = local.common_tags
 }

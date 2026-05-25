@@ -61,7 +61,10 @@ export function LoginPanel({ authSession, onSignIn, onSignOut }: LoginPanelProps
       <div>
         <p className="sidebar-label">Staff access</p>
         <h2>Sign in to manage hospital photos</h2>
-        <p>Use your staff account to upload photos, review permissions, and update searchable details.</p>
+        <p>
+          Use an invited staff account to upload photos, review permissions, and update searchable details. Public
+          self-signup is intentionally disabled for managed pilot workspaces.
+        </p>
       </div>
 
       <form className="login-form" onSubmit={handleSubmit}>

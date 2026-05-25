@@ -700,6 +700,7 @@ def _policy_metadata(policy: dict[str, Any] | None) -> dict[str, Any]:
             "owner_department": "",
             "review_status": "missing_policy",
             "staff_names": [],
+            "thumbnail_key": "",
             "usage_rights": "unknown",
             "visibility": "library",
         }
@@ -713,6 +714,7 @@ def _policy_metadata(policy: dict[str, Any] | None) -> dict[str, Any]:
         "owner_department": _ddb_string(policy.get("owner_department")),
         "review_status": _ddb_string(policy.get("review_status"), "approved"),
         "staff_names": _csv_metadata(_ddb_string(policy.get("staff_names"))),
+        "thumbnail_key": _ddb_string(policy.get("thumbnail_key")),
         "usage_rights": _ddb_string(policy.get("usage_rights"), "unknown"),
         "visibility": _ddb_string(policy.get("visibility"), "library"),
     }
@@ -742,14 +744,25 @@ def _authorize_asset(s3_key: str, groups: set[str]) -> tuple[bool, dict[str, Any
     return True, metadata
 
 
-def enrich_with_signed_url(match: Match, policy_metadata: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Attach a signed S3 URL to a query match."""
-    s3_key = match.metadata.get("s3_key", match.key)
-    signed_url = _s3_client().generate_presigned_url(
+def _signed_get_url(key: str) -> str:
+    return _s3_client().generate_presigned_url(
         "get_object",
-        Params={"Bucket": PHOTO_BUCKET_NAME, "Key": s3_key},
+        Params={"Bucket": PHOTO_BUCKET_NAME, "Key": key},
         ExpiresIn=SIGNED_URL_TTL_SECONDS,
     )
+
+
+def _signed_asset_urls(s3_key: str, policy_metadata: dict[str, Any] | None = None) -> tuple[str, str]:
+    image_url = _signed_get_url(s3_key)
+    thumbnail_key = str((policy_metadata or {}).get("thumbnail_key") or "")
+    thumbnail_url = _signed_get_url(thumbnail_key) if thumbnail_key else image_url
+    return image_url, thumbnail_url
+
+
+def enrich_with_signed_url(match: Match, policy_metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Attach signed S3 URLs to a query match."""
+    s3_key = match.metadata.get("s3_key", match.key)
+    image_url, thumbnail_url = _signed_asset_urls(str(s3_key), policy_metadata)
 
     return {
         "key": match.key,
@@ -765,8 +778,8 @@ def enrich_with_signed_url(match: Match, policy_metadata: dict[str, Any] | None 
         "subjects": _csv_metadata(match.metadata.get("subjects_csv")),
         "colors": _csv_metadata(match.metadata.get("colors_csv")),
         "objects_detected": _csv_metadata(match.metadata.get("objects_csv")),
-        "thumbnail_url": signed_url,
-        "image_url": signed_url,
+        "thumbnail_url": thumbnail_url,
+        "image_url": image_url,
         "s3_key": s3_key,
         "campaign": (policy_metadata or {}).get("campaign", ""),
         "consent_status": (policy_metadata or {}).get("consent_status", "missing"),
@@ -783,11 +796,7 @@ def enrich_with_signed_url(match: Match, policy_metadata: dict[str, Any] | None 
 
 def _policy_item_to_result(item: dict[str, Any], policy_metadata: dict[str, Any]) -> dict[str, Any]:
     asset_key = _ddb_string(item.get("asset_key"))
-    signed_url = _s3_client().generate_presigned_url(
-        "get_object",
-        Params={"Bucket": PHOTO_BUCKET_NAME, "Key": asset_key},
-        ExpiresIn=SIGNED_URL_TTL_SECONDS,
-    )
+    image_url, thumbnail_url = _signed_asset_urls(asset_key, policy_metadata)
     description = _ddb_string(item.get("ai_description"), "Curated hospital media asset.")
 
     result = {
@@ -802,8 +811,8 @@ def _policy_item_to_result(item: dict[str, Any], policy_metadata: dict[str, Any]
         "subjects": policy_metadata.get("curator_tags", []),
         "colors": [],
         "objects_detected": [],
-        "thumbnail_url": signed_url,
-        "image_url": signed_url,
+        "thumbnail_url": thumbnail_url,
+        "image_url": image_url,
         "s3_key": asset_key,
         "campaign": policy_metadata.get("campaign", ""),
         "consent_status": policy_metadata.get("consent_status", "missing"),

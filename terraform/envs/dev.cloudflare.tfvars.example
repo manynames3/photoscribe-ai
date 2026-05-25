@@ -5,15 +5,16 @@ extra_frontend_origins = [
 
 enable_aws_frontend_hosting = false
 
-# Keep false for a public portfolio demo. Set true for a private deployment that
-# requires Cognito JWTs on GET /search.
-enable_api_auth = false
+# Keep true for private-library behavior. The frontend can still run in local
+# preview mode with VITE_API_URL blank when you do not want to call AWS.
+enable_api_auth = true
 
-# For a production review queue, set this to "pending_review" and approve assets
-# by updating their DynamoDB asset policy row.
-default_asset_review_status = "approved"
+# New uploads should enter review before broad staff use.
+default_asset_review_status = "pending_review"
 
-# Optional owner-only browser uploads. Generate a token locally, store only the
-# SHA-256 hash here, and paste the raw token into the frontend upload form.
-# Example: printf '%s' 'choose-a-long-random-token' | shasum -a 256
+# Optional break-glass owner upload token. Cognito staff auth is preferred.
+# Store only the SHA-256 hash here.
 upload_token_sha256 = ""
+
+# Optional. CloudWatch dashboards can add a small monthly AWS charge.
+enable_operational_dashboard = false

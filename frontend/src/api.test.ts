@@ -33,6 +33,25 @@ describe("frontend API client", () => {
     expect(response.securityContext?.authMode).toBe("anonymous");
   });
 
+  it("keeps recommended workspace searches useful in preview mode", async () => {
+    vi.stubEnv("VITE_API_URL", "");
+
+    const headshotResponse = await searchPhotos("hospital executive headshot", {});
+    const campaignResponse = await searchPhotos("approved campaign assets", {});
+    const reviewResponse = await searchPhotos("needs compliance review", {});
+
+    expect(headshotResponse.results[0]).toMatchObject({
+      key: "preview-executive-headshot",
+      ownerDepartment: "Communications",
+      reviewStatus: "approved",
+    });
+    expect(campaignResponse.results.length).toBeGreaterThan(0);
+    expect(reviewResponse.results[0]).toMatchObject({
+      key: "preview-facilities-rounds",
+      reviewStatus: "pending_review",
+    });
+  });
+
   it("sends Cognito auth headers and normalizes backend search results", async () => {
     vi.stubEnv("VITE_API_URL", "https://api.example.test");
     window.localStorage.setItem("photoscribe.authToken", "jwt-token");
@@ -74,6 +93,19 @@ describe("frontend API client", () => {
       reviewStatus: "approved",
       staffNames: ["Dr. Maya Chen"],
     });
+  });
+
+  it("returns a user-friendly search error when auth expires", async () => {
+    vi.stubEnv("VITE_API_URL", "https://api.example.test");
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: "Unauthorized" }), {
+        headers: { "Content-Type": "application/json" },
+        status: 401,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(searchPhotos("doctor", {})).rejects.toThrow("Your staff session expired");
   });
 
   it("skips direct S3 upload when the backend reports an exact duplicate", async () => {

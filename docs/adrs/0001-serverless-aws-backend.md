@@ -16,5 +16,5 @@ Use AWS Lambda, Amazon API Gateway, Amazon S3, EventBridge, CloudWatch, and Terr
 
 - Idle cost stays low because compute is request-driven.
 - AWS IAM can be scoped per function.
-- Cold starts are acceptable for a demo and portfolio workload.
+- Cold starts are acceptable for a preview and portfolio workload.
 - Long-running batch jobs or high sustained traffic would need additional design work.

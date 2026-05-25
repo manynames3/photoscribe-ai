@@ -10,13 +10,42 @@ import type {
 
 const PREVIEW_RESULTS: PhotoResult[] = [
   {
+    id: "preview-executive-headshot",
+    key: "preview-executive-headshot",
+    description:
+      "Approved hospital executive headshot for leadership announcements, board materials, and press requests.",
+    altText: "Hospital executive headshot approved for communications use.",
+    seoCaption: "Hospital executive headshot for leadership communications.",
+    campaign: "Leadership communications",
+    consentStatus: "approved",
+    curatorTags: ["executive headshot", "approved asset", "leadership"],
+    location: "Administration office",
+    mood: "confident",
+    ownerDepartment: "Communications",
+    reviewStatus: "approved",
+    sceneType: "portrait",
+    lighting: "studio",
+    timeOfDay: "unknown",
+    peopleCount: 1,
+    source: "preview",
+    staffNames: ["Dr. Maya Chen"],
+    subjects: ["executive", "headshot", "portrait", "hospital leadership"],
+    usageRights: "public_release",
+    visibility: "library",
+  },
+  {
     id: "preview-leadership-briefing",
     key: "preview-leadership-briefing",
     description:
       "Hospital executives review community impact materials around a conference table with secure laptops, printed reports, and clean administrative lighting.",
     altText: "Hospital leadership team reviewing community impact materials.",
     seoCaption: "Hospital leadership planning session for internal communications.",
+    campaign: "Community impact report",
+    consentStatus: "approved",
+    curatorTags: ["campaign assets", "annual report", "leadership"],
+    location: "Executive conference room",
     mood: "confident",
+    ownerDepartment: "Marketing",
     reviewStatus: "approved",
     sceneType: "event",
     lighting: "studio",
@@ -24,7 +53,8 @@ const PREVIEW_RESULTS: PhotoResult[] = [
     peopleCount: 6,
     source: "preview",
     staffNames: [],
-    subjects: ["executives", "reports", "conference room"],
+    subjects: ["executives", "reports", "conference room", "approved campaign assets"],
+    usageRights: "internal_only",
     visibility: "library",
   },
   {
@@ -34,15 +64,21 @@ const PREVIEW_RESULTS: PhotoResult[] = [
       "A doctor uses a tablet in a bright hospital hallway while medical staff coordinate patient care in the background.",
     altText: "Doctor using a tablet in a hospital hallway.",
     seoCaption: "Clinician using a tablet in a hospital operations corridor.",
+    campaign: "Clinical operations",
+    consentStatus: "restricted",
+    curatorTags: ["doctor", "tablet", "clinical staff"],
+    location: "Hospital corridor",
     mood: "serene",
+    ownerDepartment: "Clinical Communications",
     reviewStatus: "approved",
     sceneType: "documentary",
     lighting: "soft_diffused",
     timeOfDay: "afternoon",
     peopleCount: 3,
     source: "preview",
-    staffNames: [],
+    staffNames: ["Dr. Jordan Lee"],
     subjects: ["doctor", "tablet", "hospital hallway"],
+    usageRights: "internal_only",
     visibility: "restricted",
   },
   {
@@ -52,7 +88,12 @@ const PREVIEW_RESULTS: PhotoResult[] = [
       "Facilities and safety staff inspect a clearly marked hospital corridor with equipment carts, wayfinding signage, and compliance documentation.",
     altText: "Hospital facilities team inspecting a clinical corridor.",
     seoCaption: "Hospital facilities inspection image for operations documentation.",
+    campaign: "Facilities documentation",
+    consentStatus: "not_required",
+    curatorTags: ["facilities", "safety inspection", "needs compliance review"],
+    location: "Clinical corridor",
     mood: "confident",
+    ownerDepartment: "Facilities",
     reviewStatus: "pending_review",
     sceneType: "documentary",
     lighting: "mixed",
@@ -61,6 +102,7 @@ const PREVIEW_RESULTS: PhotoResult[] = [
     source: "preview",
     staffNames: [],
     subjects: ["facilities", "safety", "clinical corridor"],
+    usageRights: "internal_only",
     visibility: "restricted",
   },
   {
@@ -70,7 +112,12 @@ const PREVIEW_RESULTS: PhotoResult[] = [
       "Medical staff and volunteers welcome families at an outdoor community health event with branded tables, soft daylight, and approachable patient education materials.",
     altText: "Hospital staff welcoming families at a community health event.",
     seoCaption: "Community health outreach event for hospital marketing.",
+    campaign: "Community health outreach",
+    consentStatus: "approved",
+    curatorTags: ["community health event", "approved campaign assets", "outreach"],
+    location: "Outdoor community event",
     mood: "energetic",
+    ownerDepartment: "Marketing",
     reviewStatus: "approved",
     sceneType: "event",
     lighting: "studio",
@@ -79,9 +126,12 @@ const PREVIEW_RESULTS: PhotoResult[] = [
     source: "preview",
     staffNames: [],
     subjects: ["community outreach", "families", "patient education"],
+    usageRights: "public_release",
     visibility: "library",
   },
 ];
+
+const PREVIEW_STOP_WORDS = new Set(["a", "an", "and", "for", "in", "of", "or", "the", "to", "with"]);
 
 type ApiPhotoResult = Partial<{
   aspect_ratio: string;
@@ -139,8 +189,18 @@ type SignedUploadPresignResponse = UploadPresignResponse & {
   upload_url: string;
 };
 
-function matchesPreviewQuery(result: PhotoResult, query: string) {
-  const haystack = [
+type ApiAction = "search" | "upload" | "review" | "save" | "invite";
+
+function previewSearchTerms(query: string) {
+  return query
+    .toLowerCase()
+    .split(/\s+/)
+    .map((term) => term.replace(/[^a-z0-9]/g, ""))
+    .filter((term) => term && !PREVIEW_STOP_WORDS.has(term));
+}
+
+function resultHaystack(result: PhotoResult) {
+  return [
     result.description,
     result.altText,
     result.seoCaption,
@@ -148,14 +208,47 @@ function matchesPreviewQuery(result: PhotoResult, query: string) {
     result.sceneType,
     result.lighting,
     result.timeOfDay,
+    result.reviewStatus,
+    result.visibility,
+    result.consentStatus,
+    result.usageRights,
+    result.ownerDepartment,
+    result.campaign,
+    result.location,
+    result.staffNames?.join(" "),
+    result.subjects?.join(" "),
+    result.curatorTags?.join(" "),
   ]
+    .filter(Boolean)
     .join(" ")
     .toLowerCase();
+}
 
-  return query
-    .toLowerCase()
-    .split(/\s+/)
-    .every((term) => haystack.includes(term));
+function scorePreviewQuery(result: PhotoResult, query: string) {
+  const terms = previewSearchTerms(query);
+  if (!terms.length) {
+    return 0;
+  }
+
+  const haystack = resultHaystack(result);
+  return terms.filter((term) => haystack.includes(term) || (term.endsWith("s") && haystack.includes(term.slice(0, -1)))).length;
+}
+
+function matchesPreviewQuery(result: PhotoResult, query: string) {
+  const terms = previewSearchTerms(query);
+  if (!terms.length) {
+    return false;
+  }
+
+  const minimumScore = terms.length <= 2 ? terms.length : Math.ceil(terms.length * 0.5);
+  return scorePreviewQuery(result, query) >= minimumScore;
+}
+
+function matchingPreviewResults(query: string) {
+  return PREVIEW_RESULTS.map((result) => ({ result, score: scorePreviewQuery(result, query) }))
+    .filter(({ result }) => matchesPreviewQuery(result, query))
+    .sort((left, right) => right.score - left.score)
+    .map(({ result }) => result);
 }
 
 function applyFilters(results: PhotoResult[], filters: SearchFilters) {
@@ -260,13 +353,13 @@ export async function searchPhotos(query: string, filters: SearchFilters): Promi
   const baseUrl = apiBaseUrl();
 
   if (!baseUrl) {
-    const matchingPreviewResults = PREVIEW_RESULTS.filter((result) => matchesPreviewQuery(result, trimmedQuery));
+    const previewResults = matchingPreviewResults(trimmedQuery);
 
     return {
       message: "Showing example photos.",
       mode: "preview",
       query: trimmedQuery,
-      results: applyFilters(matchingPreviewResults, filters),
+      results: applyFilters(previewResults, filters),
       securityContext: {
         authMode: "anonymous",
         deniedResults: 0,
@@ -283,12 +376,13 @@ export async function searchPhotos(query: string, filters: SearchFilters): Promi
     url.searchParams.set("filter", serializedFilters);
   }
 
-  const response = await fetch(url.toString(), {
+  const response = await apiFetch("search", url.toString(), {
     headers: authHeaders(),
   });
 
   if (!response.ok) {
-    throw new Error(`Search request failed with status ${response.status}.`);
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new Error(friendlyApiError("search", response.status, payload.error));
   }
 
   const payload = (await response.json()) as ApiSearchResponse;
@@ -319,7 +413,7 @@ export async function updateAssetTags(
     throw new Error("Saving photo details is not set up for this site yet.");
   }
 
-  const response = await fetch(`${baseUrl}/assets/tags`, {
+  const response = await apiFetch("save", `${baseUrl}/assets/tags`, {
     body: JSON.stringify({
       curator_tags: curatorTags,
       key,
@@ -330,7 +424,8 @@ export async function updateAssetTags(
   });
 
   if (!response.ok) {
-    throw new Error(`Tag update failed with status ${response.status}.`);
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new Error(friendlyApiError("save", response.status, payload.error));
   }
 
   const payload = (await response.json()) as Partial<{
@@ -352,11 +447,12 @@ export async function getReviewQueue(): Promise<PhotoResult[]> {
     return [];
   }
 
-  const response = await fetch(`${baseUrl}/assets/review`, {
+  const response = await apiFetch("review", `${baseUrl}/assets/review`, {
     headers: authHeaders(),
   });
   if (!response.ok) {
-    throw new Error(`Review queue request failed with status ${response.status}.`);
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new Error(friendlyApiError("review", response.status, payload.error));
   }
 
   const payload = (await response.json()) as { results?: unknown[] };
@@ -369,7 +465,7 @@ export async function updateAssetPolicy(update: AssetPolicyUpdate): Promise<Asse
     throw new Error("Saving review details is not set up for this site yet.");
   }
 
-  const response = await fetch(`${baseUrl}/assets/policy`, {
+  const response = await apiFetch("save", `${baseUrl}/assets/policy`, {
     body: JSON.stringify({
       campaign: update.campaign,
       consent_status: update.consentStatus,
@@ -388,7 +484,8 @@ export async function updateAssetPolicy(update: AssetPolicyUpdate): Promise<Asse
     method: "POST",
   });
   if (!response.ok) {
-    throw new Error(`Policy update failed with status ${response.status}.`);
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new Error(friendlyApiError("save", response.status, payload.error));
   }
 
   const payload = (await response.json()) as Partial<{
@@ -428,13 +525,14 @@ export async function inviteAdminUser(email: string, groups: string[]): Promise<
     throw new Error("Staff invitations are not set up for this site yet.");
   }
 
-  const response = await fetch(`${baseUrl}/admin/users`, {
+  const response = await apiFetch("invite", `${baseUrl}/admin/users`, {
     body: JSON.stringify({ email, groups }),
     headers: jsonAuthHeaders(),
     method: "POST",
   });
   if (!response.ok) {
-    throw new Error(`User invite failed with status ${response.status}.`);
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new Error(friendlyApiError("invite", response.status, payload.error));
   }
 
   return (await response.json()) as AdminUserInvite;
@@ -467,6 +565,58 @@ function isRetryableStatus(status: number) {
   return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
 }
 
+function networkApiError(action: ApiAction) {
+  if (action === "search") {
+    return "Search cannot reach the photo service. Check the API URL, CORS settings, or network connection and retry.";
+  }
+
+  if (action === "upload") {
+    return "Upload cannot reach the photo service. Check your staff session and network connection, then retry.";
+  }
+
+  return "The photo service cannot be reached. Check the network connection and retry.";
+}
+
+async function apiFetch(action: ApiAction, input: RequestInfo | URL, init?: RequestInit) {
+  try {
+    return await fetch(input, init);
+  } catch {
+    throw new Error(networkApiError(action));
+  }
+}
+
+function friendlyApiError(action: ApiAction, status: number, fallback?: string) {
+  if (status === 401) {
+    return "Your staff session expired. Sign in again and retry.";
+  }
+
+  if (status === 403) {
+    return "Your account does not have access to this action.";
+  }
+
+  if (status === 413) {
+    return "This file is too large for the current upload limit.";
+  }
+
+  if (status === 429) {
+    return "The service is busy from too many requests. Wait a minute and retry.";
+  }
+
+  if (status === 500 || status === 502 || status === 503 || status === 504) {
+    if (action === "upload") {
+      return "Upload setup is temporarily busy. Wait a minute and retry; no duplicate ingest has started for this file.";
+    }
+
+    if (action === "search") {
+      return "Search is temporarily unavailable. Recently uploaded photos may still be indexing; try again in a minute.";
+    }
+
+    return "The service is temporarily unavailable. Wait a minute and retry.";
+  }
+
+  return fallback ?? `${action} request failed with status ${status}.`;
+}
+
 async function requestUploadPresign(
   file: File,
   checksumSha256: string,
@@ -476,7 +626,7 @@ async function requestUploadPresign(
   let lastError: Error | undefined;
 
   for (let attempt = 0; attempt < 4; attempt += 1) {
-    const response = await fetch(`${baseUrl}/uploads/presign`, {
+    const response = await apiFetch("upload", `${baseUrl}/uploads/presign`, {
       body: JSON.stringify({
         checksum_sha256: checksumSha256,
         content_type: contentType,
@@ -507,7 +657,7 @@ async function requestUploadPresign(
       return payload as UploadPresignResponse;
     }
 
-    const message = payload.error ?? `Upload request failed with status ${response.status}.`;
+    const message = friendlyApiError("upload", response.status, payload.error);
     lastError = new Error(message);
     if (!isRetryableStatus(response.status) || attempt === 3) {
       throw lastError;

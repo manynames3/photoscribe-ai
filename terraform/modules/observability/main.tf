@@ -157,3 +157,114 @@ resource "aws_cloudwatch_metric_alarm" "ingest_dlq_messages" {
     QueueName = var.ingest_dlq_name
   }
 }
+
+resource "aws_cloudwatch_dashboard" "operations" {
+  count = var.enable_operational_dashboard ? 1 : 0
+
+  dashboard_body = jsonencode({
+    widgets = [
+      {
+        height = 6
+        type   = "metric"
+        width  = 12
+        x      = 0
+        y      = 0
+        properties = {
+          metrics = [
+            ["AWS/Lambda", "Invocations", "FunctionName", var.ingest_lambda_name, { label = "Ingest invocations", stat = "Sum" }],
+            [".", ".", ".", var.search_lambda_name, { label = "Search invocations", stat = "Sum" }],
+            [".", "Errors", ".", var.ingest_lambda_name, { label = "Ingest errors", stat = "Sum", yAxis = "right" }],
+            [".", ".", ".", var.search_lambda_name, { label = "Search errors", stat = "Sum", yAxis = "right" }],
+          ]
+          period = 300
+          region = var.region
+          title  = "Lambda traffic and errors"
+          view   = "timeSeries"
+        }
+      },
+      {
+        height = 6
+        type   = "metric"
+        width  = 12
+        x      = 12
+        y      = 0
+        properties = {
+          metrics = [
+            ["AWS/ApiGateway", "Count", "ApiId", var.search_api_id, "Stage", var.search_api_stage_name, { label = "Requests", stat = "Sum" }],
+            [".", "4xx", ".", ".", ".", ".", { label = "4xx", stat = "Sum", yAxis = "right" }],
+            [".", "5xx", ".", ".", ".", ".", { label = "5xx", stat = "Sum", yAxis = "right" }],
+            [".", "Latency", ".", ".", ".", ".", { label = "Latency p95", stat = "p95" }],
+          ]
+          period = 300
+          region = var.region
+          title  = "HTTP API health"
+          view   = "timeSeries"
+        }
+      },
+      {
+        height = 6
+        type   = "metric"
+        width  = 12
+        x      = 0
+        y      = 6
+        properties = {
+          metrics = [
+            ["AWS/SQS", "ApproximateAgeOfOldestMessage", "QueueName", var.ingest_queue_name, { label = "Oldest ingest message age", stat = "Maximum" }],
+            [".", "ApproximateNumberOfMessagesVisible", ".", var.ingest_queue_name, { label = "Queued ingest messages", stat = "Maximum", yAxis = "right" }],
+            [".", ".", ".", var.ingest_dlq_name, { label = "DLQ messages", stat = "Maximum", yAxis = "right" }],
+          ]
+          period = 300
+          region = var.region
+          title  = "Ingest queue and DLQ"
+          view   = "timeSeries"
+        }
+      },
+      {
+        height = 6
+        type   = "log"
+        width  = 12
+        x      = 12
+        y      = 6
+        properties = {
+          query  = "SOURCE '${var.ingest_log_group_name}' | fields @timestamp, @message | filter @message like /ingest failed|thumbnail generation failed/ | sort @timestamp desc | limit 20"
+          region = var.region
+          title  = "Recent ingest failures"
+          view   = "table"
+        }
+      },
+      {
+        height = 6
+        type   = "metric"
+        width  = 12
+        x      = 0
+        y      = 12
+        properties = {
+          metrics = [
+            ["AWS/Lambda", "Duration", "FunctionName", var.ingest_lambda_name, { label = "Ingest p95", stat = "p95" }],
+            [".", ".", ".", var.search_lambda_name, { label = "Search p95", stat = "p95" }],
+            [".", "Throttles", ".", var.ingest_lambda_name, { label = "Ingest throttles", stat = "Sum", yAxis = "right" }],
+            [".", ".", ".", var.search_lambda_name, { label = "Search throttles", stat = "Sum", yAxis = "right" }],
+          ]
+          period = 300
+          region = var.region
+          title  = "Lambda latency and throttles"
+          view   = "timeSeries"
+        }
+      },
+      {
+        height = 6
+        type   = "log"
+        width  = 12
+        x      = 12
+        y      = 12
+        properties = {
+          query  = "SOURCE '${var.search_log_group_name}' | fields @timestamp, @message | filter @message like /ERROR|error|failed/ | sort @timestamp desc | limit 20"
+          region = var.region
+          title  = "Recent search/API failures"
+          view   = "table"
+        }
+      },
+    ]
+  })
+  dashboard_name = "photoscribe-${var.tags["Environment"]}-operations"
+}

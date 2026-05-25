@@ -8,6 +8,7 @@ type UploadPanelProps = {
 };
 
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const ACCEPTED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
 
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) {
@@ -24,6 +25,15 @@ function createQueueItems(files: File[]) {
     progress: 0,
     status: "ready" as const,
   }));
+}
+
+function isAcceptedImage(file: File) {
+  if (ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+    return true;
+  }
+
+  const lowerName = file.name.toLowerCase();
+  return ACCEPTED_IMAGE_EXTENSIONS.some((extension) => lowerName.endsWith(extension));
 }
 
 async function sha256File(file: File) {
@@ -55,18 +65,38 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [items, setItems] = useState<UploadQueueItem[]>([]);
+  const [notice, setNotice] = useState("");
 
   function updateItem(id: string, patch: Partial<UploadQueueItem>) {
     setItems((currentItems) => currentItems.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   }
 
   function handleFiles(fileList: FileList | File[]) {
-    const files = Array.from(fileList).filter((file) => ACCEPTED_IMAGE_TYPES.includes(file.type));
+    const incomingFiles = Array.from(fileList);
+    const files = incomingFiles.filter(isAcceptedImage);
+
+    if (!files.length && incomingFiles.length) {
+      setNotice("Choose JPEG, PNG, or WebP files. Other file types were ignored.");
+      return;
+    }
+
+    if (files.length !== incomingFiles.length) {
+      setNotice("Some files were ignored because only JPEG, PNG, and WebP uploads are supported.");
+    } else {
+      setNotice(`${files.length} file${files.length === 1 ? "" : "s"} ready to upload.`);
+    }
+
     setItems((currentItems) => [...currentItems, ...createQueueItems(files)]);
   }
 
   async function processUploads() {
+    if (!items.length) {
+      setNotice("Choose images before starting an upload.");
+      return;
+    }
+
     setIsUploading(true);
+    setNotice("Uploading photos. Exact duplicates are skipped before ingest starts.");
     let uploadedCount = 0;
     const seenChecksums = new Set(
       items
@@ -130,7 +160,12 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
 
     setIsUploading(false);
     if (uploadedCount) {
+      setNotice(
+        `${uploadedCount} photo${uploadedCount === 1 ? "" : "s"} uploaded. New photos usually appear after AI indexing finishes.`,
+      );
       onUploaded?.(uploadedCount);
+    } else {
+      setNotice("No new photos were uploaded. Check duplicate or error messages below.");
     }
   }
 
@@ -189,6 +224,8 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
         <input disabled value="Signed-in staff only" />
       </label>
 
+      {notice ? <p className="upload-notice">{notice}</p> : null}
+
       <div className="upload-actions">
         <button
           className="search-button"
@@ -200,7 +237,15 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
         >
           {isUploading ? "Uploading..." : `Upload ${readyCount || items.length} file${(readyCount || items.length) === 1 ? "" : "s"}`}
         </button>
-        <button className="clear-filters" disabled={isUploading || !items.length} onClick={() => setItems([])} type="button">
+        <button
+          className="clear-filters"
+          disabled={isUploading || !items.length}
+          onClick={() => {
+            setItems([]);
+            setNotice("");
+          }}
+          type="button"
+        >
           Clear
         </button>
       </div>

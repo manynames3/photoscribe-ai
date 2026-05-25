@@ -48,6 +48,11 @@ output "cognito_user_pool_id" {
   value       = try(module.auth[0].user_pool_id, "")
 }
 
+output "cloudwatch_dashboard_name" {
+  description = "Optional CloudWatch operations dashboard name when enabled."
+  value       = module.observability.dashboard_name
+}
+
 output "frontend_bucket" {
   description = "S3 bucket storing the built frontend assets."
   value       = try(module.frontend[0].bucket_name, "")

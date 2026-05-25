@@ -103,6 +103,31 @@ def test_search_handler_returns_enriched_results(monkeypatch) -> None:
     }
 
 
+def test_search_result_uses_signed_thumbnail_when_policy_has_derivative(monkeypatch) -> None:
+    signed_keys: list[str] = []
+
+    class FakeS3Client:
+        def generate_presigned_url(self, _operation: str, *, Params: dict[str, str], **_kwargs: object) -> str:
+            signed_keys.append(Params["Key"])
+            return f"https://signed.example/{Params['Key']}"
+
+    monkeypatch.setattr(search_handler, "_s3_client", lambda: FakeS3Client())
+    monkeypatch.setattr(search_handler, "PHOTO_BUCKET_NAME", "photos")
+
+    result = search_handler.enrich_with_signed_url(
+        Match(
+            key="uploads/original.jpg",
+            distance=0.1,
+            metadata={"description": "Approved asset.", "s3_key": "uploads/original.jpg"},
+        ),
+        {"thumbnail_key": "thumbnails/aa/thumb.webp"},
+    )
+
+    assert result["image_url"] == "https://signed.example/uploads/original.jpg"
+    assert result["thumbnail_url"] == "https://signed.example/thumbnails/aa/thumb.webp"
+    assert signed_keys == ["uploads/original.jpg", "thumbnails/aa/thumb.webp"]
+
+
 def test_search_handler_filters_assets_by_policy_and_audits(monkeypatch) -> None:
     monkeypatch.setattr(search_handler, "embed_text", lambda _query: [0.1, 0.2, 0.3])
     monkeypatch.setattr(

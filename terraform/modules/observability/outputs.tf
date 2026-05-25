@@ -10,3 +10,6 @@ output "billing_topic_arn" {
   value = aws_sns_topic.billing.arn
 }
 
+output "dashboard_name" {
+  value = try(aws_cloudwatch_dashboard.operations[0].dashboard_name, "")
+}

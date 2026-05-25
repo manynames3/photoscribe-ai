@@ -1,4 +1,4 @@
-# ADR 0005: Use pre-signed S3 URLs for demo image access
+# ADR 0005: Use pre-signed S3 URLs for preview image access
 
 ## Status
 
@@ -16,5 +16,5 @@ Keep the photo bucket private and have the search Lambda return short-lived pre-
 
 - S3 public access can remain blocked.
 - The UI can render images without proxying all bytes through Lambda.
-- Demo photos should be treated as public-facing once indexed because the public search API can return signed URLs.
+- Preview photos should be treated as public-facing once indexed because the public search API can return signed URLs.
 - A production private-photo product would need authentication, authorization, and probably a thumbnail pipeline.

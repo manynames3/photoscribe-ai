@@ -8,9 +8,26 @@ type ReviewQueueProps = {
   onOpen: (photo: PhotoResult) => void;
 };
 
+function reviewReason(item: PhotoResult) {
+  if (!item.consentStatus || item.consentStatus === "missing") {
+    return "Consent missing";
+  }
+
+  if (!item.usageRights || item.usageRights === "unknown") {
+    return "Rights unknown";
+  }
+
+  if (item.visibility === "restricted") {
+    return "Restricted asset";
+  }
+
+  return "Review required";
+}
+
 export function ReviewQueue({ canReview, onOpen }: ReviewQueueProps) {
   const [items, setItems] = useState<PhotoResult[]>([]);
   const [status, setStatus] = useState("Load newly uploaded photos that need review before staff use them.");
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   if (!canReview) {
@@ -24,6 +41,7 @@ export function ReviewQueue({ canReview, onOpen }: ReviewQueueProps) {
     try {
       const results = await getReviewQueue();
       setItems(results);
+      setHasLoaded(true);
       setStatus(`${results.length} photo${results.length === 1 ? "" : "s"} waiting for review.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Review queue failed.");
@@ -56,10 +74,14 @@ export function ReviewQueue({ canReview, onOpen }: ReviewQueueProps) {
                   {item.ownerDepartment || "Unassigned"} · {item.consentStatus || "missing consent"} ·{" "}
                   {item.usageRights || "unknown rights"}
                 </small>
+                <em>{reviewReason(item)}</em>
               </span>
             </button>
           ))}
         </div>
+      ) : null}
+      {hasLoaded && !items.length ? (
+        <p className="curator-status">No photos are waiting for review. New uploads will appear here after indexing.</p>
       ) : null}
     </section>
   );

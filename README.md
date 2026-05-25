@@ -3,18 +3,44 @@
 [![Cloudflare Pages](https://github.com/manynames3/photoscribe-ai/actions/workflows/cloudflare-pages.yml/badge.svg)](https://github.com/manynames3/photoscribe-ai/actions/workflows/cloudflare-pages.yml)
 [![Lambda Tests](https://github.com/manynames3/photoscribe-ai/actions/workflows/lambda-test.yml/badge.svg)](https://github.com/manynames3/photoscribe-ai/actions/workflows/lambda-test.yml)
 [![Terraform Plan](https://github.com/manynames3/photoscribe-ai/actions/workflows/terraform-plan.yml/badge.svg)](https://github.com/manynames3/photoscribe-ai/actions/workflows/terraform-plan.yml)
-[![Live Demo](https://img.shields.io/badge/live-demo-2f574f)](https://photoscribe-ai.pages.dev/)
+[![Live Preview](https://img.shields.io/badge/live-preview-2f574f)](https://photoscribe-ai.pages.dev/)
 [![AWS](https://img.shields.io/badge/AWS-Bedrock%20%7C%20Lambda%20%7C%20S3%20Vectors-FF9900?logo=amazonwebservices&logoColor=white)](#architecture)
 [![IaC](https://img.shields.io/badge/IaC-Terraform-844FBA?logo=terraform&logoColor=white)](#deployment)
 [![Frontend](https://img.shields.io/badge/Frontend-React%20%2B%20TypeScript-3178C6?logo=react&logoColor=white)](#tech-stack)
 
 PhotoScribe AI is a serverless AI media asset platform for searching enterprise photo libraries by meaning instead of filenames. Uploaded images are stored privately in Amazon S3, described with Amazon Bedrock Nova Lite, embedded with Titan Text Embeddings, indexed in Amazon S3 Vectors, governed with DynamoDB asset policy/audit tables, and searched through a React + TypeScript UI deployed on Cloudflare Pages.
 
-**Live demo:** [photoscribe-ai.pages.dev](https://photoscribe-ai.pages.dev/)
+The product-facing UI is branded as **CareFrame**, a hospital media workspace for finding, reviewing, and reusing approved internal photos.
+
+**Live preview:** [photoscribe-ai.pages.dev](https://photoscribe-ai.pages.dev/)
+
+## TL;DR
+
+PhotoScribe AI is a production-style cloud portfolio project for enterprise media intelligence: a public product landing page explains the system, while the staff workspace at [`/app`](https://photoscribe-ai.pages.dev/app) lets authorized users search, upload, review, and govern private hospital media assets. The backend uses AWS serverless services: S3, Lambda, API Gateway, Cognito, Bedrock Nova Lite, Titan Embeddings, S3 Vectors, DynamoDB, SQS/DLQ, CloudWatch alarms, optional CloudWatch dashboard, Terraform, and GitHub Actions CI/CD. The project is designed to show real AWS architecture skill, infrastructure as code, secure auth/config handling, failure isolation, observability, and cost-aware AI/vector search design.
 
 > Enterprise media intelligence for organizations that can't afford to lose assets in a folder.
 
 PhotoScribe AI solves a real enterprise problem: thousands of photos sitting in shared drives with filenames like `IMG_4872.jpg`, undiscoverable, untagged, and unused. Marketing teams cannot find campaign photos, HR manually renames portraits, investor relations repeats photo shoots, and compliance teams cannot easily audit whether released images contain sensitive or identifiable content.
+
+## Preview Flow
+
+Use the public landing page to understand the product, then open [`/app`](https://photoscribe-ai.pages.dev/app) to try the workspace. If the backend is not configured locally, the frontend falls back to bundled sample results so the product workflow can still be reviewed.
+
+1. Search like a hospital staff request: `hospital executive headshot`, `community health event`, or `hospital facilities documentation`.
+2. Open a result and review the non-technical asset context: recommended use, owner department, consent, rights, campaign, staff names, and location.
+3. Sign in with an invited Cognito staff user to upload files, load the review queue, approve/restrict assets, and add searchable human metadata.
+
+The public preview is sample-first by design. Private uploads and review tools require staff access because image ingest triggers real AWS processing cost.
+
+For a controlled buyer or hiring-manager walkthrough, use the [pilot runbook](docs/pilot-runbook.md).
+
+## Sellable MVP Direction
+
+The credible first commercial offer is a managed pilot for a hospital marketing or communications team, not a broad self-serve DAM replacement. The pilot scope is one private media library, one buyer workflow, and one measurable outcome: help staff find and reuse approved images faster while preserving consent, usage-rights, and review context.
+
+Suggested first offer: managed setup plus a monthly private workspace. Keep public preview access free, but make private uploads, staff invites, review workflow, and signed asset delivery paid or manually approved.
+
+The first paid version should remain a single-customer managed pilot. Multi-tenant account isolation, self-serve billing, and enterprise SSO are intentionally deferred until one buyer workflow is validated.
 
 ## About
 
@@ -23,6 +49,7 @@ This project demonstrates how I design, deploy, and operate a small cloud-native
 What I built:
 
 - an AWS ingest pipeline that reacts to S3 uploads and creates AI-generated photo metadata
+- an ingest-time WebP thumbnail pipeline for faster UI previews while originals remain private
 - a vector search backend using Bedrock embeddings and S3 Vectors
 - an HTTP search API backed by AWS Lambda and API Gateway
 - a responsive React interface with Cognito login, metadata filters, browser uploads, review queue, and signed image previews
@@ -33,7 +60,7 @@ What I built:
 
 ## Product Fit
 
-PhotoScribe is designed for organizations that manage large volumes of visual assets across departments with different governance needs: healthcare, real estate, retail, financial services, professional services, universities, and corporate communications teams.
+PhotoScribe's primary pilot market is hospital marketing and communications teams that manage approved internal media across departments. The same architecture can later support other asset-heavy organizations such as universities, real estate firms, retail teams, financial services, and corporate communications teams, but the current product experience is intentionally healthcare-first.
 
 Example searches:
 
@@ -47,9 +74,9 @@ See [docs/use-cases.md](docs/use-cases.md) for a healthcare and enterprise use-c
 
 ## Companion Tooling
 
-I also built [Bulk Image Size Reducer](https://bulk-image-size-reducer.pages.dev/) ([GitHub](https://github.com/manynames3/bulk-image-size-reducer)) to prepare image-heavy websites and portfolio demos for faster loading. It batch-converts large JPEG/PNG assets to optimized WebP/JPEG/PNG outputs in the browser, which is useful before publishing image-heavy pages where page weight, Core Web Vitals, and SEO matter.
+I also built [Bulk Image Size Reducer](https://bulk-image-size-reducer.pages.dev/) ([GitHub](https://github.com/manynames3/bulk-image-size-reducer)) to prepare image-heavy websites and portfolio previews for faster loading. It batch-converts large JPEG/PNG assets to optimized WebP/JPEG/PNG outputs in the browser, which is useful before publishing image-heavy pages where page weight, Core Web Vitals, and SEO matter.
 
-For the PhotoScribe demo asset workflow, the companion tool reduced multi-megabyte JPEG exports into WebP files around 89-362 KB in the sample batch, with per-file savings shown between 86% and 97%. See [docs/image-optimization-workflow.md](docs/image-optimization-workflow.md).
+For the PhotoScribe sample asset workflow, the companion tool reduced multi-megabyte JPEG exports into WebP files around 89-362 KB in the sample batch, with per-file savings shown between 86% and 97%. See [docs/image-optimization-workflow.md](docs/image-optimization-workflow.md).
 
 ## Tech Stack
 
@@ -62,12 +89,12 @@ For the PhotoScribe demo asset workflow, the companion tool reduced multi-megaby
 | Compute | AWS Lambda, Python 3.12 |
 | AI services | Amazon Bedrock Nova Lite multimodal, Amazon Titan Text Embeddings v2 |
 | Vector search | Amazon S3 Vectors |
-| Storage | Amazon S3, S3 versioning, lifecycle rules, pre-signed URLs |
+| Storage | Amazon S3, S3 versioning, lifecycle rules, generated WebP thumbnails, pre-signed URLs |
 | Queueing | Amazon SQS ingest queue with dead-letter queue |
 | Governance | Amazon DynamoDB asset policy table, DynamoDB audit log table with TTL |
 | Infrastructure | Terraform, AWS provider, AWS Cloud Control provider (`awscc`) |
 | CI/CD | GitHub Actions, GitHub repository secrets and variables |
-| Observability | CloudWatch Logs, operational CloudWatch alarms, SNS billing alarm |
+| Observability | CloudWatch Logs, operational CloudWatch alarms, optional CloudWatch dashboard, SNS billing alarm |
 
 ## Engineering Highlights
 
@@ -77,6 +104,7 @@ For the PhotoScribe demo asset workflow, the companion tool reduced multi-megaby
 - **Private-library controls:** Cognito JWT auth protects search, upload, review, and admin routes; Lambda enforces DynamoDB asset policies before issuing signed image URLs.
 - **Audit and review workflow:** Ingest creates pending-review asset policy rows; reviewers classify owner department, usage rights, consent status, expiration, campaign, staff names, location, visibility, and release status.
 - **Safe browser uploads:** The UI hashes files client-side, skips exact duplicates, requests authenticated pre-signed S3 PUT URLs, uploads directly to the private bucket, and sends new assets through the review queue.
+- **Thumbnail pipeline:** Ingest creates deterministic WebP thumbnails under `thumbnails/`; search returns signed thumbnail URLs when available and falls back to signed originals for legacy assets.
 - **Burst protection and failure isolation:** S3 events flow through SQS with capped Lambda event-source concurrency and a dead-letter queue for failed ingest events.
 - **Cost-aware architecture:** S3 Vectors avoids always-on vector infrastructure for a low-volume portfolio workload.
 - **Infrastructure as code:** Terraform defines AWS storage, vector, compute, API, observability, and optional frontend hosting resources.
@@ -85,7 +113,7 @@ For the PhotoScribe demo asset workflow, the companion tool reduced multi-megaby
 
 ## Architecture
 
-Detailed architecture documentation lives in [docs/architecture.md](docs/architecture.md).
+Detailed architecture documentation lives in [docs/architecture.md](docs/architecture.md). The managed-pilot operating model is documented in [docs/pilot-runbook.md](docs/pilot-runbook.md). Security, observability, and operations docs live in [docs/security.md](docs/security.md), [docs/observability.md](docs/observability.md), and [docs/operations-runbook.md](docs/operations-runbook.md).
 
 High-level flow:
 
@@ -97,7 +125,7 @@ flowchart LR
     auth["Cognito<br/>JWT auth + role groups"] --> api
     search --> embed["Bedrock<br/>Titan Embeddings"]
     search --> vectors["S3 Vectors<br/>photos index"]
-    search --> photos["S3 Photo Bucket<br/>pre-signed URLs"]
+    search --> photos["S3 Photo Bucket<br/>signed originals + thumbnails"]
     search --> governance["DynamoDB<br/>asset policy + audit"]
     ui --> upload["POST /uploads/presign<br/>signed-in staff"]
     upload --> photos
@@ -111,6 +139,7 @@ flowchart LR
     ingest --> embed
     ingest --> vectors
     ingest --> governance
+    ingest --> thumbs["WebP thumbnails<br/>private S3 objects"]
 ```
 
 Architecture decision records are in [docs/adrs](docs/adrs/README.md).
@@ -145,9 +174,19 @@ Run the frontend locally:
 
 ```bash
 cd frontend
+cp .env.example .env.local
 npm ci
 npm run dev
 ```
+
+By default, `.env.example` leaves `VITE_API_URL` blank. That runs the frontend in preview mode with bundled sample results and avoids a broken first-run if you have not deployed the AWS backend yet.
+
+Frontend environment variables:
+
+- `VITE_API_URL`: deployed API Gateway base URL; leave blank for local preview mode
+- `VITE_COGNITO_USER_POOL_ID`: Cognito User Pool ID for staff login; required only with auth-enabled backend
+- `VITE_COGNITO_CLIENT_ID`: Cognito app client ID for staff login; required only with auth-enabled backend
+- `VITE_CONTACT_EMAIL`: optional email used by request-access CTAs
 
 Run Lambda tests:
 
@@ -172,6 +211,7 @@ Frontend deployment:
 - Build command: `npm ci && npm run build`
 - Deploy command: `wrangler pages deploy frontend/dist`
 - Required GitHub variables: `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_PAGES_PROJECT_NAME`, `VITE_API_URL`, `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`
+- Optional GitHub variable: `VITE_CONTACT_EMAIL`
 - Required GitHub secret: `CLOUDFLARE_API_TOKEN`
 
 Backend deployment:
@@ -199,6 +239,7 @@ Useful Terraform outputs:
 - `search_api_url`
 - `asset_policy_table_name`
 - `audit_log_table_name`
+- `cloudwatch_dashboard_name` when `enable_operational_dashboard = true`
 - `cognito_user_pool_id` when `enable_api_auth = true`
 
 Create the first admin after Terraform creates Cognito:
@@ -230,6 +271,7 @@ Automated checks available in the repo:
 - `npm run build` in `frontend/`
 - `npm test` in `frontend/`
 - `PYTHONPATH=. pytest lambdas -v --cov=lambdas --cov-report=term-missing`
+- `./scripts/smoke-test.sh` against a deployed API with a Cognito token
 - `terraform fmt -check -recursive`
 - `terraform validate`
 - `git diff --check`
@@ -243,6 +285,8 @@ Manual smoke test:
 5. Search for the asset by semantic query, staff name, or curator tag.
 
 ## Security And Privacy
+
+See [docs/security.md](docs/security.md) for the security model, data handling assumptions, and hardening checklist.
 
 - S3 photo buckets block public access.
 - Search results return short-lived pre-signed S3 URLs instead of public bucket objects.
@@ -261,15 +305,14 @@ Current privacy limitation: legacy assets indexed before the review workflow nee
 
 ## Cost Model
 
-The architecture is designed for low-volume portfolio usage. The main cost driver is Bedrock image description during ingest, so the default model is Nova Lite. Nova Pro remains affordable if higher caption quality is needed, while Claude can be configured for premium/high-performance review workflows at higher cost. S3 storage, S3 Vectors storage, Lambda, DynamoDB, and API Gateway are small at demo scale. See [docs/cost-model.md](docs/cost-model.md) for notes and assumptions.
+The architecture is designed for low-volume portfolio usage. The main cost driver is Bedrock image description during ingest, so the default model is Nova Lite. Nova Pro remains affordable if higher caption quality is needed, while Claude can be configured for premium/high-performance review workflows at higher cost. S3 storage, generated thumbnails, S3 Vectors storage, Lambda, DynamoDB, and API Gateway are small at pilot scale. The CloudWatch dashboard is optional because dashboards can add a small monthly AWS charge. See [docs/cost-model.md](docs/cost-model.md) and [docs/observability.md](docs/observability.md) for notes and assumptions.
 
 ## Limitations
 
-- Search returns signed URLs for the original uploaded objects; a thumbnail generation pipeline is future work.
-- The review workflow is policy-table based and demo-scale; production would add stronger moderation, legal hold workflows, and enterprise SSO.
+- The review workflow is policy-table based and pilot-scale; production would add stronger moderation, legal hold workflows, and enterprise SSO.
 - The Terraform repo still includes optional AWS S3 + CloudFront frontend hosting modules, but the active public frontend is Cloudflare Pages.
 - The Cloudflare Pages project is a direct-upload project, not Cloudflare Git integration.
-- The vector index is optimized for low-volume demo workloads, not multi-tenant enterprise photo libraries.
+- The vector index is optimized for low-volume pilot workloads, not multi-tenant enterprise photo libraries.
 
 ## Troubleshooting
 
@@ -287,10 +330,9 @@ The architecture is designed for low-volume portfolio usage. The main cost drive
 
 - Add enterprise SSO/SAML and richer user lifecycle workflows.
 - Add automated moderation with Amazon Rekognition or a Bedrock guardrail workflow before human review.
-- Generate and serve responsive thumbnails.
 - Add a re-indexing workflow for prompt/model changes.
-- Add CloudWatch dashboards and latency SLOs for API and ingest performance.
-- Add a public runbook for incident response and operations.
+- Add latency SLOs for API and ingest performance.
+- Add customer-facing support escalation workflows.
 
 ## License
 

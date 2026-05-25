@@ -13,6 +13,11 @@ variable "enable_operational_alarms" {
   type        = bool
 }
 
+variable "enable_operational_dashboard" {
+  description = "Whether to provision the optional CloudWatch dashboard."
+  type        = bool
+}
+
 variable "ingest_dlq_name" {
   description = "SQS dead-letter queue name for failed ingest events."
   type        = string
@@ -30,6 +35,11 @@ variable "ingest_log_group_name" {
 
 variable "ingest_queue_name" {
   description = "SQS queue name for ingest events."
+  type        = string
+}
+
+variable "region" {
+  description = "AWS region for workload metrics."
   type        = string
 }
 

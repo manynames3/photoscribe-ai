@@ -26,11 +26,17 @@ export function AdminPanel({ canAdmin }: AdminPanelProps) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setStatus("Enter a staff email before sending an invite.");
+      return;
+    }
+
     setIsSubmitting(true);
     setStatus("");
 
     try {
-      const result = await inviteAdminUser(email, groups);
+      const result = await inviteAdminUser(trimmedEmail, groups);
       setStatus(`${result.email} invited with ${result.groups.join(", ")} access.`);
       setEmail("");
     } catch (error) {
@@ -72,7 +78,7 @@ export function AdminPanel({ canAdmin }: AdminPanelProps) {
             </button>
           ))}
         </div>
-        <button className="search-button" disabled={isSubmitting || !groups.length} type="submit">
+        <button className="search-button" disabled={isSubmitting || !groups.length || !email.trim()} type="submit">
           {isSubmitting ? "Inviting..." : "Invite user"}
         </button>
       </form>

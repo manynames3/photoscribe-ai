@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The public portfolio demo should be easy to review, but a credible institutional media asset platform needs private-library controls by default. Search results include signed image URLs, so access decisions must happen before the URL is generated. The system also needs a lightweight review and audit trail without adding always-on services or paid SaaS dependencies.
+The public portfolio preview should be easy to review, but a credible institutional media asset platform needs private-library controls by default. Search results include signed image URLs, so access decisions must happen before the URL is generated. The system also needs a lightweight review and audit trail without adding always-on services or paid SaaS dependencies.
 
 ## Decision
 

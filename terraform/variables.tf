@@ -136,3 +136,9 @@ variable "enable_operational_alarms" {
   type        = bool
   default     = true
 }
+
+variable "enable_operational_dashboard" {
+  description = "Whether to provision the optional CloudWatch dashboard. Dashboards can add a small monthly AWS charge."
+  type        = bool
+  default     = false
+}

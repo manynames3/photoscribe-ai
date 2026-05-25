@@ -7,6 +7,7 @@ type PhotoModalProps = {
   authSession: AuthSession | null;
   canCurate: boolean;
   onClose: () => void;
+  onPhotoUpdated?: (photo: PhotoResult) => void;
   photo: PhotoResult | null;
 };
 
@@ -91,6 +92,25 @@ function recommendedUse(photo: PhotoResult) {
   return "Check review details before sharing outside your department.";
 }
 
+function reviewReadiness(photo: PhotoResult) {
+  const missingItems = [
+    !photo.ownerDepartment && "owner department",
+    (!photo.consentStatus || photo.consentStatus === "missing") && "consent status",
+    (!photo.usageRights || photo.usageRights === "unknown") && "usage rights",
+    photo.peopleCount && photo.peopleCount > 0 && !photo.staffNames?.length && "visible people or staff names",
+  ].filter(Boolean);
+
+  if (!missingItems.length && photo.reviewStatus === "approved") {
+    return "Ready for approved library use.";
+  }
+
+  if (!missingItems.length) {
+    return "Review details are complete. Choose an approval decision.";
+  }
+
+  return `Needs ${missingItems.join(", ")} before broad reuse.`;
+}
+
 function joinValues(values: string[] | undefined) {
   return values?.join(", ") ?? "";
 }
@@ -102,7 +122,7 @@ function splitValues(value: string) {
     .filter(Boolean);
 }
 
-export function PhotoModal({ authSession, canCurate, onClose, photo }: PhotoModalProps) {
+export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, photo }: PhotoModalProps) {
   const [activeDossierTab, setActiveDossierTab] = useState<DossierTab>("overview");
   const [campaign, setCampaign] = useState("");
   const [consentStatus, setConsentStatus] = useState("missing");
@@ -203,12 +223,51 @@ export function PhotoModal({ authSession, canCurate, onClose, photo }: PhotoModa
       setStaffNames(joinValues(result.staffNames));
       setUsageRights(result.usageRights);
       setVisibility(result.visibility);
+      const updatedPhoto = {
+        ...photo,
+        campaign: result.campaign,
+        consentStatus: result.consentStatus,
+        curatorTags: result.curatorTags,
+        expirationDate: result.expirationDate,
+        location: result.location,
+        ownerDepartment: result.ownerDepartment,
+        reviewStatus: result.reviewStatus,
+        staffNames: result.staffNames,
+        usageRights: result.usageRights,
+        visibility: result.visibility,
+      };
+      onPhotoUpdated?.(updatedPhoto);
       setTagStatus("Photo details saved.");
     } catch (error) {
       setTagStatus(error instanceof Error ? error.message : "Tag update failed.");
     } finally {
       setIsSavingTags(false);
     }
+  }
+
+  function applyReviewPreset(preset: "approve" | "compliance" | "restrict") {
+    if (preset === "approve") {
+      setReviewStatus("approved");
+      setVisibility("library");
+      setConsentStatus((current) => (current === "missing" ? "approved" : current));
+      setUsageRights((current) => (current === "unknown" ? "internal_only" : current));
+      setGroups(["admin", "reviewer", "marketing", "hr", "compliance", "facilities"]);
+      return;
+    }
+
+    if (preset === "compliance") {
+      setReviewStatus("pending_review");
+      setVisibility("restricted");
+      setConsentStatus("missing");
+      setUsageRights("unknown");
+      setGroups(["admin", "reviewer", "compliance"]);
+      return;
+    }
+
+    setReviewStatus("rejected");
+    setVisibility("restricted");
+    setUsageRights("do_not_use");
+    setGroups(["admin", "reviewer", "compliance"]);
   }
 
   return (
@@ -273,6 +332,10 @@ export function PhotoModal({ authSession, canCurate, onClose, photo }: PhotoModa
                 <div>
                   <span>Best-fit teams</span>
                   <strong>{departmentFit(photo)}</strong>
+                </div>
+                <div>
+                  <span>Review readiness</span>
+                  <strong>{reviewReadiness(photo)}</strong>
                 </div>
               </div>
 
@@ -364,6 +427,21 @@ export function PhotoModal({ authSession, canCurate, onClose, photo }: PhotoModa
                 Add details the system cannot know, then approve, restrict, or reject the photo
                 before broader staff use.
               </p>
+            </div>
+
+            <div className="review-preset-grid" aria-label="Review decision shortcuts">
+              <button onClick={() => applyReviewPreset("approve")} type="button">
+                <strong>Approve for library</strong>
+                <span>Internal use with complete consent and rights fields.</span>
+              </button>
+              <button onClick={() => applyReviewPreset("compliance")} type="button">
+                <strong>Send to compliance</strong>
+                <span>Restricted until consent or release details are verified.</span>
+              </button>
+              <button onClick={() => applyReviewPreset("restrict")} type="button">
+                <strong>Do not use</strong>
+                <span>Keep restricted and mark as unavailable for reuse.</span>
+              </button>
             </div>
 
             <div className="curator-field-grid">

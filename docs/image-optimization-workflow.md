@@ -13,7 +13,7 @@ Bulk Image Size Reducer solves the adjacent frontend performance problem by batc
 
 ## Workflow Used For This Project
 
-1. Generate or select sample enterprise media assets for the PhotoScribe demo.
+1. Generate or select sample enterprise media assets for the PhotoScribe preview.
 2. Use Bulk Image Size Reducer to batch-convert large JPEG files to WebP.
 3. Keep output dimensions appropriate for web display.
 4. Use a consistent filename suffix such as `-reduced`.

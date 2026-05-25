@@ -14,7 +14,7 @@ locals {
   package_module_name    = basename(var.lambda_source_dir)
   package_module_dir     = "${local.package_dir}/${local.package_module_name}"
   package_zip            = "${path.root}/.terraform-build/${var.lambda_name}.zip"
-  package_recipe         = "v3"
+  package_recipe         = "v4"
   source_files           = sort(fileset(var.lambda_source_dir, "*.py"))
   source_hash            = sha256(join("", [for file in concat(local.source_files, ["requirements.txt"]) : filesha256("${var.lambda_source_dir}/${file}")]))
   image_model_is_profile = length(regexall("^(global|us)\\.", var.image_model_id)) > 0
@@ -107,6 +107,11 @@ data "aws_iam_policy_document" "logs" {
   }
 
   statement {
+    actions   = ["s3:PutObject"]
+    resources = ["${var.photo_bucket_arn}/thumbnails/*"]
+  }
+
+  statement {
     actions   = ["s3vectors:PutVectors"]
     resources = [var.vector_index_arn]
   }
@@ -184,6 +189,15 @@ resource "aws_cloudwatch_event_rule" "photo_created" {
     detail = {
       bucket = {
         name = [var.event_bucket_name]
+      }
+      object = {
+        key = [
+          {
+            "anything-but" = {
+              prefix = "thumbnails/"
+            }
+          }
+        ]
       }
     }
   })
