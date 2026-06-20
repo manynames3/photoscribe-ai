@@ -21,3 +21,15 @@ output "dlq_name" {
 output "dlq_arn" {
   value = aws_sqs_queue.ingest_dlq.arn
 }
+
+output "event_source_enabled" {
+  value = aws_lambda_event_source_mapping.ingest_queue.enabled
+}
+
+output "queue_receive_wait_time_seconds" {
+  value = aws_sqs_queue.ingest.receive_wait_time_seconds
+}
+
+output "dlq_receive_wait_time_seconds" {
+  value = aws_sqs_queue.ingest_dlq.receive_wait_time_seconds
+}

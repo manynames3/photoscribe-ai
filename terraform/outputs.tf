@@ -28,6 +28,11 @@ output "api_auth_enabled" {
   value       = var.enable_api_auth
 }
 
+output "sqs_worker_enabled" {
+  description = "Whether the ingest Lambda SQS event-source mapping is enabled."
+  value       = local.sqs_worker_enabled
+}
+
 output "asset_policy_table_name" {
   description = "DynamoDB table storing asset review and access policy metadata."
   value       = module.governance.asset_policy_table_name

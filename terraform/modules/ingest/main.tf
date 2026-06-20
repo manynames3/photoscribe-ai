@@ -31,6 +31,7 @@ locals {
 resource "aws_sqs_queue" "ingest" {
   name                      = "${var.lambda_name}-queue"
   message_retention_seconds = 345600
+  receive_wait_time_seconds = 20
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.ingest_dlq.arn
     maxReceiveCount     = 3
@@ -42,6 +43,7 @@ resource "aws_sqs_queue" "ingest" {
 resource "aws_sqs_queue" "ingest_dlq" {
   name                      = "${var.lambda_name}-dlq"
   message_retention_seconds = 1209600
+  receive_wait_time_seconds = 20
   tags                      = var.tags
 }
 
@@ -166,6 +168,8 @@ resource "aws_lambda_function" "this" {
       DEFAULT_REVIEW_STATUS    = var.default_review_status
       DEFAULT_VISIBILITY       = var.default_visibility
       PHOTO_BUCKET_NAME        = var.event_bucket_name
+      SQS_IDLE_BACKOFF_MODE    = "aws-lambda-managed"
+      SQS_RECEIVE_WAIT_SECONDS = "20"
       VECTOR_BUCKET_NAME       = var.vector_bucket_name
       VECTOR_INDEX_NAME        = var.vector_index_name
     }
@@ -235,6 +239,7 @@ resource "aws_cloudwatch_event_target" "queue" {
 
 resource "aws_lambda_event_source_mapping" "ingest_queue" {
   batch_size                         = 1
+  enabled                            = var.event_source_enabled
   event_source_arn                   = aws_sqs_queue.ingest.arn
   function_name                      = aws_lambda_function.this.arn
   maximum_batching_window_in_seconds = 0

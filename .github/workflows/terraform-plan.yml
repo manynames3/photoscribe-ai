@@ -71,6 +71,10 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform validate
 
+      - name: Terraform tests
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform test -test-directory=tests
+
       - name: Terraform plan
         if: steps.config.outputs.ready == 'true'
         working-directory: ${{ env.TF_WORKING_DIR }}
