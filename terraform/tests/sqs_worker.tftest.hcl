@@ -18,6 +18,10 @@ mock_provider "aws" {
   }
 }
 
+mock_provider "aws" {
+  alias = "billing"
+}
+
 mock_provider "awscc" {}
 mock_provider "archive" {}
 
