@@ -167,6 +167,22 @@ def upsert_asset_policy(*, bucket: str, key: str, metadata: Any, thumbnail_key: 
 
 def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     """Ingest uploaded images into S3 Vectors."""
+    sqs_records = [
+        record
+        for record in event.get("Records", [])
+        if record.get("eventSource") == "aws:sqs"
+    ]
+    if sqs_records:
+        _log(
+            {
+                "message": "sqs worker batch started",
+                "queue_arn": sqs_records[0].get("eventSourceARN", ""),
+                "batch_size": len(sqs_records),
+                "wait_time_seconds": int(os.environ.get("SQS_RECEIVE_WAIT_SECONDS", "20")),
+                "idle_backoff": os.environ.get("SQS_IDLE_BACKOFF_MODE", "aws-lambda-managed"),
+            }
+        )
+
     records = _extract_s3_records(event)
     _log({"message": "received event", "record_count": len(records), "raw_source": event.get("source", "records")})
 

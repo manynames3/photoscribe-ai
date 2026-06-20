@@ -33,6 +33,11 @@ locals {
 
   name_prefix = "${local.project}-${var.env}"
 
+  sqs_worker_enabled = var.enable_sqs_worker != null ? var.enable_sqs_worker : !contains(
+    ["dev", "development", "local"],
+    lower(var.env),
+  )
+
   photo_bucket_name       = "${local.name_prefix}-${data.aws_caller_identity.current.account_id}-${var.region}-photos"
   vector_bucket_name      = "${local.name_prefix}-${data.aws_caller_identity.current.account_id}-${var.region}-vectors"
   vector_index_name       = "photos"
@@ -108,6 +113,7 @@ module "ingest" {
   default_review_status        = var.default_asset_review_status
   default_visibility           = var.default_asset_visibility
   embed_model_id               = var.embed_model_id
+  event_source_enabled         = local.sqs_worker_enabled
   event_source_max_concurrency = var.ingest_event_source_max_concurrency
   event_bucket_name            = module.storage.photo_bucket_name
   image_model_id               = var.image_model_id

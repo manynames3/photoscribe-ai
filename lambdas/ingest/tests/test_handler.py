@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from io import BytesIO
 
 from moto import mock_aws
@@ -109,6 +110,30 @@ def test_ingest_handler_extracts_eventbridge_event_from_sqs(monkeypatch) -> None
     assert response["statusCode"] == 200
     assert json.loads(response["body"])["records"] == 1
     assert captured["key"] == "uploads/image.webp"
+
+
+def test_ingest_handler_logs_sqs_worker_configuration(monkeypatch, caplog) -> None:
+    monkeypatch.setenv("SQS_RECEIVE_WAIT_SECONDS", "20")
+    monkeypatch.setenv("SQS_IDLE_BACKOFF_MODE", "aws-lambda-managed")
+    event = {
+        "Records": [
+            {
+                "eventSource": "aws:sqs",
+                "eventSourceARN": "arn:aws:sqs:us-east-1:123456789012:photoscribe-dev-ingest-queue",
+                "body": "{}",
+            }
+        ]
+    }
+
+    with caplog.at_level(logging.INFO):
+        response = handler(event, None)
+
+    log_entries = [json.loads(record.message) for record in caplog.records if record.message.startswith("{")]
+    worker_log = next(entry for entry in log_entries if entry["message"] == "sqs worker batch started")
+    assert response["statusCode"] == 200
+    assert worker_log["batch_size"] == 1
+    assert worker_log["wait_time_seconds"] == 20
+    assert worker_log["idle_backoff"] == "aws-lambda-managed"
 
 
 def test_upsert_asset_policy_preserves_review_decisions(monkeypatch) -> None:

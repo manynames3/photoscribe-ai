@@ -224,6 +224,11 @@ terraform plan -var-file=envs/dev.tfvars -var-file=envs/dev.cloudflare.tfvars
 terraform apply
 ```
 
+The development SQS ingest worker is disabled by default to avoid idle Lambda
+polling. Set `enable_sqs_worker = true` only for an intentional ingest session,
+apply the reviewed plan, and set it back to `false` afterward. Production keeps
+the worker enabled. See [the operations runbook](docs/operations-runbook.md#run-the-sqs-ingest-worker) for details.
+
 Operational alert confirmation:
 
 - Terraform creates an SNS email subscription for `alert_email`.

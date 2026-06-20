@@ -131,6 +131,13 @@ variable "ingest_event_source_max_concurrency" {
   default     = 2
 }
 
+variable "enable_sqs_worker" {
+  description = "Whether the SQS ingest event-source mapping is enabled. Defaults off in development environments and on elsewhere."
+  type        = bool
+  default     = null
+  nullable    = true
+}
+
 variable "enable_operational_alarms" {
   description = "Whether to provision low-cost CloudWatch alarms for Lambda, API Gateway, and SQS failures."
   type        = bool

@@ -38,6 +38,11 @@ variable "event_source_max_concurrency" {
   type        = number
 }
 
+variable "event_source_enabled" {
+  description = "Whether the SQS event-source mapping may poll the ingest queue."
+  type        = bool
+}
+
 variable "event_bucket_name" {
   description = "Bucket name that emits photo-created events."
   type        = string

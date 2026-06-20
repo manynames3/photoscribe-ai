@@ -27,7 +27,7 @@ The dashboard includes:
 
 - Lambda invocations and errors
 - API request count, 4xx, 5xx, and p95 latency
-- ingest queue age, queued messages, and DLQ messages
+- ingest queue age, queued messages, DLQ messages, and empty receives
 - Lambda p95 duration and throttles
 - recent ingest and search failure log queries
 
@@ -58,4 +58,3 @@ Do not include AWS account IDs, tokens, email addresses, or private object keys 
 - DLQ messages mean an S3 event failed repeatedly and needs replay or investigation.
 - API 401/403 responses usually mean expired login or insufficient role group.
 - API 5xx responses usually mean a Lambda, Bedrock, DynamoDB, or S3 Vectors issue.
-

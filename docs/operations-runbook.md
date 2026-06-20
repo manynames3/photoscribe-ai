@@ -43,6 +43,51 @@ Checks:
 5. Inspect the DLQ message body to identify the original S3 event.
 6. Replay the event only after fixing the root cause.
 
+## Run The SQS Ingest Worker
+
+The queue consumer is an AWS Lambda event-source mapping, not an application
+polling loop. Lambda owns the `ReceiveMessage` calls and idle polling, so sleep
+or jitter inside the handler cannot reduce empty receives. Terraform sets
+20-second long polling on the source queue and DLQ, and keeps the mapping
+disabled by default in `dev`, `development`, and `local` environments.
+
+Enable the development worker only while exercising photo ingest:
+
+```bash
+terraform -chdir=terraform plan \
+  -var-file=envs/dev.tfvars \
+  -var-file=envs/dev.cloudflare.tfvars \
+  -var='enable_sqs_worker=true' \
+  -out=plan.tfplan
+terraform -chdir=terraform apply plan.tfplan
+terraform -chdir=terraform output -raw sqs_worker_enabled
+```
+
+After the ingest session, repeat the reviewed plan and apply with
+`enable_sqs_worker=false`. Messages remain in the source queue for four days
+while the mapping is disabled. Successful batch-size-one invocations delete
+their message; failures are retried and eventually sent to the existing DLQ.
+
+Verify idle usage in CloudWatch with `AWS/SQS` -> `NumberOfEmptyReceives`, the
+`QueueName` dimension, statistic `Sum`, and period `1 day`. The CLI equivalent
+for June 2026 is:
+
+```bash
+aws cloudwatch get-metric-statistics \
+  --namespace AWS/SQS \
+  --metric-name NumberOfEmptyReceives \
+  --dimensions Name=QueueName,Value=photoscribe-dev-ingest-queue \
+  --start-time 2026-06-01T00:00:00Z \
+  --end-time 2026-07-01T00:00:00Z \
+  --period 86400 \
+  --statistics Sum
+```
+
+After disabling the mapping, daily empty receives should fall to zero unless a
+consumer outside this Terraform stack is polling the queue. Non-empty Lambda
+invocations log the queue ARN, batch size, 20-second wait, and Lambda-managed
+idle behavior.
+
 ## Thumbnail Failure
 
 Symptoms:
@@ -120,4 +165,3 @@ PHOTOSCRIBE_PHOTO_PATH="./sample.jpg" \
 PHOTOSCRIBE_SMOKE_QUERY="hospital executive headshot" \
 ./scripts/smoke-test.sh
 ```
-

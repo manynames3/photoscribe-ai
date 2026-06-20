@@ -212,6 +212,7 @@ resource "aws_cloudwatch_dashboard" "operations" {
             ["AWS/SQS", "ApproximateAgeOfOldestMessage", "QueueName", var.ingest_queue_name, { label = "Oldest ingest message age", stat = "Maximum" }],
             [".", "ApproximateNumberOfMessagesVisible", ".", var.ingest_queue_name, { label = "Queued ingest messages", stat = "Maximum", yAxis = "right" }],
             [".", ".", ".", var.ingest_dlq_name, { label = "DLQ messages", stat = "Maximum", yAxis = "right" }],
+            [".", "NumberOfEmptyReceives", ".", var.ingest_queue_name, { label = "Empty receives", stat = "Sum", yAxis = "right" }],
           ]
           period = 300
           region = var.region
