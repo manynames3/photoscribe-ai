@@ -51,7 +51,7 @@ export function AdminPanel({ canAdmin }: AdminPanelProps) {
       <div>
         <p className="sidebar-label">Admin</p>
         <h2>User access</h2>
-        <p>Invite hospital staff and choose what kind of photo work they can do.</p>
+        <p>Invite Briar staff and choose what kind of photo work they can do.</p>
       </div>
 
       <form className="login-form" onSubmit={handleSubmit}>
@@ -60,7 +60,7 @@ export function AdminPanel({ canAdmin }: AdminPanelProps) {
           <input
             autoComplete="email"
             onChange={(event) => setEmail(event.target.value)}
-            placeholder="reviewer@hospital.org"
+            placeholder="reviewer@briar.example"
             type="email"
             value={email}
           />

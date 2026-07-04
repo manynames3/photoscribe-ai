@@ -38,6 +38,16 @@ PhotoScribe AI / CareFrame is designed as a private media-library pilot, not a p
 - No legal hold or retention workflow beyond S3/DynamoDB lifecycle configuration and pilot offboarding.
 - No formal penetration test, SOC 2, HIPAA attestation, or BAA.
 
+## End-User Pilot Gate
+
+CareFrame can be handed to invited pilot staff only after:
+
+1. Signed-out `/app` access is verified to hide search, filters, result cards, signed image links, uploads, review queues, and admin actions.
+2. Cognito sign-in, sign-out, group assignment, and token refresh behavior are tested with real staff-role accounts.
+3. Search, upload, review queue, asset policy update, and admin invite flows pass against the deployed API.
+4. CloudWatch alarms, DLQ depth, API errors, Lambda errors, and billing alerts are checked after the QA run.
+5. The pilot owner confirms only approved, de-identified, or synthetic media will be uploaded.
+
 ## Hardening Checklist Before A Real Hospital Deployment
 
 1. Complete buyer security and legal review.

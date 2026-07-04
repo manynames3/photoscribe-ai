@@ -15,6 +15,16 @@ Optional upload smoke:
   PHOTOSCRIBE_SMOKE_QUERY="sample photo description" \
   ./scripts/smoke-test.sh
 
+Optional curator/admin smoke:
+  PHOTOSCRIBE_API_URL=https://api.example.com \
+  PHOTOSCRIBE_AUTH_TOKEN=<admin-or-reviewer-cognito-id-token> \
+  PHOTOSCRIBE_POLICY_ASSET_KEY=uploads/example.jpg \
+  PHOTOSCRIBE_SMOKE_INVITE_EMAIL=reviewer@example.org \
+  ./scripts/smoke-test.sh
+
+If PHOTOSCRIBE_PHOTO_PATH is set and PHOTOSCRIBE_POLICY_ASSET_KEY is omitted,
+the script updates policy metadata for the uploaded object key.
+
 Required tools: curl, jq, python3, shasum, wc
 EOF
 }
@@ -31,7 +41,10 @@ urlencode() {
 }
 
 content_type_for_file() {
-  case "${1,,}" in
+  local lower_name
+  lower_name="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+
+  case "$lower_name" in
     *.jpg | *.jpeg) printf 'image/jpeg' ;;
     *.png) printf 'image/png' ;;
     *.webp) printf 'image/webp' ;;
@@ -105,6 +118,7 @@ presign_body="$(jq -n \
 
 presign_response="$(api_json POST "${api_url}/uploads/presign" "$presign_body")"
 echo "$presign_response" | jq '{bucket, key, duplicate}'
+uploaded_asset_key="$(echo "$presign_response" | jq -r '.key // empty')"
 
 if [[ "$(echo "$presign_response" | jq -r '.duplicate // false')" != "true" ]]; then
   upload_url="$(echo "$presign_response" | jq -r '.upload_url')"
@@ -123,7 +137,43 @@ echo "4. Loading review queue."
 review_response="$(api_json GET "${api_url}/assets/review")"
 echo "$review_response" | jq '{message, pending_review_count: (.results | length)}'
 
-echo "5. Polling search so ingest has time to finish."
+policy_asset_key="${PHOTOSCRIBE_POLICY_ASSET_KEY:-${uploaded_asset_key:-}}"
+if [[ -n "$policy_asset_key" ]]; then
+  echo "5. Updating asset policy for: ${policy_asset_key}"
+  policy_body="$(jq -n \
+    --arg key "$policy_asset_key" \
+    '{
+      key: $key,
+      campaign: "Smoke test",
+      consent_status: "approved",
+      curator_tags: ["smoke-test"],
+      expiration_date: "",
+      groups: ["admin", "reviewer", "marketing"],
+      location: "Briar University Hospital",
+      owner_department: "Communications",
+      review_status: "approved",
+      staff_names: [],
+      usage_rights: "internal_only",
+      visibility: "library"
+    }')"
+  policy_response="$(api_json POST "${api_url}/assets/policy" "$policy_body")"
+  echo "$policy_response" | jq '{key, review_status, owner_department, visibility, groups}'
+else
+  echo "5. Policy update smoke skipped. Set PHOTOSCRIBE_POLICY_ASSET_KEY to test review metadata updates."
+fi
+
+if [[ -n "${PHOTOSCRIBE_SMOKE_INVITE_EMAIL:-}" ]]; then
+  echo "6. Inviting staff user: ${PHOTOSCRIBE_SMOKE_INVITE_EMAIL}"
+  invite_body="$(jq -n \
+    --arg email "$PHOTOSCRIBE_SMOKE_INVITE_EMAIL" \
+    '{email: $email, groups: ["reviewer"]}')"
+  invite_response="$(api_json POST "${api_url}/admin/users" "$invite_body")"
+  echo "$invite_response" | jq '{email, groups, message}'
+else
+  echo "6. Admin invite smoke skipped. Set PHOTOSCRIBE_SMOKE_INVITE_EMAIL to test staff invitations."
+fi
+
+echo "7. Polling search so ingest has time to finish."
 attempts="${PHOTOSCRIBE_SMOKE_ATTEMPTS:-6}"
 sleep_seconds="${PHOTOSCRIBE_SMOKE_SLEEP_SECONDS:-20}"
 for attempt in $(seq 1 "$attempts"); do

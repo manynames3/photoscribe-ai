@@ -286,6 +286,29 @@ def test_search_handler_allows_reviewers_to_view_pending_assets(monkeypatch) -> 
     assert body["security_context"]["groups"] == ["reviewer"]
 
 
+def test_security_context_parses_api_gateway_group_string() -> None:
+    context = search_handler._security_context(
+        {
+            "requestContext": {
+                "authorizer": {
+                    "jwt": {
+                        "claims": {
+                            "cognito:groups": "[marketing reviewer admin]",
+                            "sub": "user-1",
+                        }
+                    }
+                }
+            }
+        }
+    )
+
+    assert context == {
+        "auth_mode": "jwt",
+        "groups": ["admin", "marketing", "reviewer"],
+        "principal_id": "user-1",
+    }
+
+
 def test_search_handler_returns_curated_tag_matches(monkeypatch) -> None:
     monkeypatch.setattr(search_handler, "embed_text", lambda _query: [0.1, 0.2, 0.3])
     monkeypatch.setattr(search_handler, "query", lambda *_args, **_kwargs: [])

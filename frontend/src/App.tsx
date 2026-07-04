@@ -186,6 +186,7 @@ const INTEGRATIONS = [
 const API_URL = import.meta.env.VITE_API_URL?.trim() ?? "";
 const CONTACT_EMAIL = import.meta.env.VITE_CONTACT_EMAIL?.trim() ?? "";
 const IS_PREVIEW_MODE = !API_URL;
+const WORKSPACE_HOSPITAL_NAME = "Briar University Hospital";
 const DEFAULT_PREVIEW_QUERY = "approved hospital";
 
 const EMPTY_PILOT_REQUEST = {
@@ -283,14 +284,21 @@ export function App() {
   }, [authSession, routeView]);
 
   useEffect(() => {
-    if (didSeedPreviewRef.current || routeView !== "workspace" || !IS_PREVIEW_MODE || submittedQuery || isLoading) {
+    if (
+      didSeedPreviewRef.current ||
+      routeView !== "workspace" ||
+      !authSession ||
+      !IS_PREVIEW_MODE ||
+      submittedQuery ||
+      isLoading
+    ) {
       return;
     }
 
     didSeedPreviewRef.current = true;
     setQuery(DEFAULT_PREVIEW_QUERY);
     void handleSearch(DEFAULT_PREVIEW_QUERY, filters);
-  }, [filters, isLoading, routeView, submittedQuery]);
+  }, [authSession, filters, isLoading, routeView, submittedQuery]);
 
   function navigateToWorkspace(openAuthPanel = false) {
     if (window.location.pathname !== WORKSPACE_PATH) {
@@ -355,7 +363,7 @@ export function App() {
 
   function handleFilterChange(nextFilters: SearchFilters) {
     setFilters(nextFilters);
-    if (submittedQuery) {
+    if (authSession && submittedQuery) {
       void handleSearch(query, nextFilters);
     }
   }
@@ -366,12 +374,18 @@ export function App() {
     setAuthSession(null);
     setQuery("");
     setSubmittedQuery("");
+    setFilters({});
     setResults([]);
     setSecurityContext({ authMode: "anonymous", deniedResults: 0, groups: [] });
     setStatus("Sign in to view and manage private hospital photos.");
   }
 
   function handleWorkflowSearch(workflowQuery: string) {
+    if (!authSession) {
+      setIsAuthPanelOpen(true);
+      return;
+    }
+
     setQuery(workflowQuery);
     void handleSearch(workflowQuery, filters);
   }
@@ -434,7 +448,7 @@ export function App() {
   const canAdmin = userGroups.includes("admin");
   const isSignedIn = Boolean(authSession);
   const hasSubmittedSearch = Boolean(submittedQuery);
-  const showMetrics = hasSubmittedSearch || isLoading;
+  const showMetrics = isSignedIn && (hasSubmittedSearch || isLoading);
   const pendingReviewCount = results.filter((result) => result.reviewStatus === "pending_review").length;
   const approvedCount = results.filter((result) => result.reviewStatus === "approved").length;
   const missingConsentCount = results.filter((result) => !result.consentStatus || result.consentStatus === "missing").length;
@@ -479,7 +493,10 @@ export function App() {
       <header className="site-nav" aria-label="Primary navigation">
         <a className="nav-brand" href="/" onClick={handleLandingLink}>
           <span className="brand-mark">CF</span>
-          <span>CareFrame</span>
+          <span className="brand-copy">
+            <strong>CareFrame</strong>
+            <small>Media desk</small>
+          </span>
         </a>
 
         <nav className="nav-links" aria-label="Page sections">
@@ -769,7 +786,7 @@ export function App() {
               <input
                 autoComplete="email"
                 onChange={(event) => handlePilotRequestChange("email", event.target.value)}
-                placeholder="avery@hospital.org"
+                placeholder="avery@briar.example"
                 type="email"
                 value={pilotRequest.email}
               />
@@ -779,7 +796,7 @@ export function App() {
               <input
                 autoComplete="organization"
                 onChange={(event) => handlePilotRequestChange("organization", event.target.value)}
-                placeholder="Regional Medical Center"
+                placeholder={WORKSPACE_HOSPITAL_NAME}
                 value={pilotRequest.organization}
               />
             </label>
@@ -856,7 +873,10 @@ export function App() {
       <header className="site-nav workspace-nav" aria-label="Application navigation">
         <a className="nav-brand" href={WORKSPACE_PATH} onClick={(event) => handleWorkspaceLink(event)}>
           <span className="brand-mark">CF</span>
-          <span>CareFrame</span>
+          <span className="brand-copy">
+            <strong>CareFrame</strong>
+            <small>Media desk</small>
+          </span>
         </a>
 
         <nav className="nav-links" aria-label="Workspace sections">
@@ -875,7 +895,7 @@ export function App() {
       <section className="workspace-command" id="search">
         <div className="workspace-command-header">
           <div className="workspace-command-copy">
-            <p className="eyebrow">Hospital photo library</p>
+            <p className="eyebrow">{WORKSPACE_HOSPITAL_NAME}</p>
             <h1>Find the usable image, then check whether it is cleared.</h1>
             <p>
               Search by person, department, event, location, or description. Open a result to inspect owner, consent,
@@ -886,11 +906,13 @@ export function App() {
           <div className="workspace-status-panel" aria-label="Workspace status">
             <div>
               <span>Library</span>
-              <strong>{IS_PREVIEW_MODE ? "Preview" : "Private"}</strong>
+              <strong>{WORKSPACE_HOSPITAL_NAME}</strong>
             </div>
             <div>
               <span>Session</span>
-              <strong>{authSession ? authSession.email : "Visitor"}</strong>
+              <strong className="status-email" title={authSession?.email ?? "Visitor"}>
+                {authSession ? authSession.email : "Visitor"}
+              </strong>
             </div>
             <div>
               <span>Controls</span>
@@ -921,10 +943,10 @@ export function App() {
           </div>
         )}
 
-        {IS_PREVIEW_MODE ? (
+        {isSignedIn && IS_PREVIEW_MODE ? (
           <div className="preview-notice" role="status">
-            <strong>Preview mode</strong>
-            <span>Using bundled sample photos. Connect the AWS backend to search a private hospital library.</span>
+            <strong>Local sample data</strong>
+            <span>Connect the AWS backend to search a private Briar University Hospital library.</span>
           </div>
         ) : null}
 
@@ -952,57 +974,57 @@ export function App() {
         />
       ) : null}
 
-      <section className="content-grid product-workspace" id="library">
-        <aside className="sidebar-panel">
-          <div className="sidebar-header">
-            <div>
-              <p className="sidebar-label">Filters</p>
-              <h2>Refine results</h2>
-            </div>
-            {activeFilterCount ? <span className="filter-count">{activeFilterCount}</span> : null}
-          </div>
-
-          <FilterPanel
-            disabled={isLoading}
-            filters={filters}
-            onChange={handleFilterChange}
-            onClear={() => handleFilterChange({})}
-          />
-        </aside>
-
-        <section className="results-panel">
-          <div className="results-summary">
-            <div>
-              <p className="sidebar-label">{resultsLabel}</p>
-              <h2>{resultsTitle}</h2>
-              <p className="status-copy">{resultsMessage}</p>
-            </div>
-            <div className="results-actions">
-              <div className="view-toggle" aria-label="Result display mode">
-                <button
-                  aria-pressed={resultView === "grid"}
-                  className={resultView === "grid" ? "is-active" : ""}
-                  onClick={() => setResultView("grid")}
-                  type="button"
-                >
-                  Grid
-                </button>
-                <button
-                  aria-pressed={resultView === "list"}
-                  className={resultView === "list" ? "is-active" : ""}
-                  onClick={() => setResultView("list")}
-                  type="button"
-                >
-                  List
-                </button>
+      {isSignedIn ? (
+        <section className="content-grid product-workspace" id="library">
+          <aside className="sidebar-panel">
+            <div className="sidebar-header">
+              <div>
+                <p className="sidebar-label">Filters</p>
+                <h2>Refine results</h2>
               </div>
-              {securityContext.deniedResults ? (
-                <span className="mode-subtle">{securityContext.deniedResults} hidden by access rules</span>
-              ) : null}
+              {activeFilterCount ? <span className="filter-count">{activeFilterCount}</span> : null}
             </div>
-          </div>
 
-          {isSignedIn ? (
+            <FilterPanel
+              disabled={isLoading}
+              filters={filters}
+              onChange={handleFilterChange}
+              onClear={() => handleFilterChange({})}
+            />
+          </aside>
+
+          <section className="results-panel">
+            <div className="results-summary">
+              <div>
+                <p className="sidebar-label">{resultsLabel}</p>
+                <h2>{resultsTitle}</h2>
+                <p className="status-copy">{resultsMessage}</p>
+              </div>
+              <div className="results-actions">
+                <div className="view-toggle" aria-label="Result display mode">
+                  <button
+                    aria-pressed={resultView === "grid"}
+                    className={resultView === "grid" ? "is-active" : ""}
+                    onClick={() => setResultView("grid")}
+                    type="button"
+                  >
+                    Grid
+                  </button>
+                  <button
+                    aria-pressed={resultView === "list"}
+                    className={resultView === "list" ? "is-active" : ""}
+                    onClick={() => setResultView("list")}
+                    type="button"
+                  >
+                    List
+                  </button>
+                </div>
+                {securityContext.deniedResults ? (
+                  <span className="mode-subtle">{securityContext.deniedResults} hidden by access rules</span>
+                ) : null}
+              </div>
+            </div>
+
             <section className="request-strip" aria-label="Common photo request shortcuts">
               <div>
                 <span>Shortcuts</span>
@@ -1022,54 +1044,79 @@ export function App() {
                 ))}
               </div>
             </section>
-          ) : null}
 
-          {error ? (
-            <div className="error-banner" role="alert">
-              <strong>Search could not finish.</strong>
-              <p>{error}</p>
-            </div>
-          ) : null}
+            {error ? (
+              <div className="error-banner" role="alert">
+                <strong>Search could not finish.</strong>
+                <p>{error}</p>
+              </div>
+            ) : null}
 
-          {!hasSubmittedSearch && !isLoading && !error ? (
-            <section className="browse-start" aria-label="Common photo requests">
-              <div className="browse-start-header">
-                <div>
-                  <h3>New here? Start with one of these requests.</h3>
-                  <p>Each card runs a realistic hospital media search. Open a result to inspect rights and review context.</p>
+            {!hasSubmittedSearch && !isLoading && !error ? (
+              <section className="browse-start" aria-label="Common photo requests">
+                <div className="browse-start-header">
+                  <div>
+                    <h3>Start with a common request.</h3>
+                    <p>Each card runs a realistic media search. Open a result to inspect rights and review context.</p>
+                  </div>
+                  <ol className="quick-start-list" aria-label="Suggested workflow">
+                    {QUICK_START_STEPS.map((step) => (
+                      <li key={step.label}>{step.label}</li>
+                    ))}
+                  </ol>
                 </div>
-                <ol className="quick-start-list" aria-label="Suggested workflow">
-                  {QUICK_START_STEPS.map((step) => (
-                    <li key={step.label}>{step.label}</li>
+                <div className="browse-card-grid">
+                  {DEPARTMENT_WORKFLOWS.map((workflow) => (
+                    <button
+                      className="browse-card"
+                      key={workflow.label}
+                      onClick={() => handleWorkflowSearch(workflow.query)}
+                      type="button"
+                    >
+                      <span>{workflow.status}</span>
+                      <strong>{workflow.label}</strong>
+                      <p>{workflow.detail}</p>
+                    </button>
                   ))}
-                </ol>
-              </div>
-              <div className="browse-card-grid">
-                {DEPARTMENT_WORKFLOWS.map((workflow) => (
-                  <button
-                    className="browse-card"
-                    key={workflow.label}
-                    onClick={() => handleWorkflowSearch(workflow.query)}
-                    type="button"
-                  >
-                    <span>{workflow.status}</span>
-                    <strong>{workflow.label}</strong>
-                    <p>{workflow.detail}</p>
-                  </button>
-                ))}
-              </div>
-            </section>
-          ) : null}
+                </div>
+              </section>
+            ) : null}
 
-          <PhotoGrid
-            isLoading={isLoading}
-            onOpen={setSelectedPhoto}
-            results={results}
-            viewMode={resultView}
-            submittedQuery={submittedQuery}
-          />
+            <PhotoGrid
+              isLoading={isLoading}
+              onOpen={setSelectedPhoto}
+              results={results}
+              viewMode={resultView}
+              submittedQuery={submittedQuery}
+            />
+          </section>
         </section>
-      </section>
+      ) : (
+        <section className="locked-library-panel" id="library">
+          <div>
+            <p className="eyebrow">Private library</p>
+            <h2>Staff sign-in is required before any media library content is shown.</h2>
+            <p>
+              Search results, filters, signed image links, uploads, review queues, and admin actions are available only
+              after an invited staff member signs in.
+            </p>
+          </div>
+          <ol className="access-step-list" aria-label="Staff access steps">
+            <li>
+              <strong>1. Sign in</strong>
+              <span>Use an invited Briar University Hospital staff account.</span>
+            </li>
+            <li>
+              <strong>2. Search or upload</strong>
+              <span>Find approved media or add files for review.</span>
+            </li>
+            <li>
+              <strong>3. Confirm reuse context</strong>
+              <span>Check owner, consent, rights, visibility, and review state.</span>
+            </li>
+          </ol>
+        </section>
+      )}
 
       {isSignedIn ? (
         <section className="landing-section management-section workspace-management" id="manage">

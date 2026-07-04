@@ -5,11 +5,12 @@ This runbook covers common pilot operations for a single CareFrame AWS environme
 ## Daily Pilot Check
 
 1. Confirm the Cloudflare Pages site loads.
-2. Confirm `/app` can search either preview data or the connected private library.
-3. Check CloudWatch alarms are in `OK` state.
-4. Check the ingest DLQ has zero visible messages.
-5. Search for a known approved asset.
-6. Confirm review queue loads for an admin or reviewer user.
+2. Confirm signed-out `/app` shows the private-library access gate and does not expose search, filters, result cards, signed image links, upload controls, review queue, or admin actions.
+3. Sign in with a staff test account.
+4. Search for a known approved asset.
+5. Confirm review queue loads for an admin or reviewer user.
+6. Check CloudWatch alarms are in `OK` state.
+7. Check the ingest DLQ has zero visible messages.
 
 ## Failed Upload
 
@@ -163,5 +164,15 @@ PHOTOSCRIBE_API_URL="$(terraform -chdir=terraform output -raw search_api_url)" \
 PHOTOSCRIBE_AUTH_TOKEN="<cognito-id-token>" \
 PHOTOSCRIBE_PHOTO_PATH="./sample.jpg" \
 PHOTOSCRIBE_SMOKE_QUERY="hospital executive headshot" \
+./scripts/smoke-test.sh
+```
+
+Optional policy update and admin invite:
+
+```bash
+PHOTOSCRIBE_API_URL="$(terraform -chdir=terraform output -raw search_api_url)" \
+PHOTOSCRIBE_AUTH_TOKEN="<admin-or-reviewer-cognito-id-token>" \
+PHOTOSCRIBE_POLICY_ASSET_KEY="uploads/example.jpg" \
+PHOTOSCRIBE_SMOKE_INVITE_EMAIL="reviewer@example.org" \
 ./scripts/smoke-test.sh
 ```

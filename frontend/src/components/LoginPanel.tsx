@@ -46,7 +46,7 @@ export function LoginPanel({ authSession, onSignIn, onSignOut }: LoginPanelProps
       <section className="login-panel">
         <div>
           <p className="sidebar-label">Signed in</p>
-          <h2>{authSession.email || "Hospital user"}</h2>
+          <h2>{authSession.email || "Briar staff user"}</h2>
           <p>{authSession.groups.length ? authSession.groups.join(", ") : "No team assigned"}</p>
         </div>
         <button className="clear-filters" onClick={onSignOut} type="button">
@@ -60,7 +60,7 @@ export function LoginPanel({ authSession, onSignIn, onSignOut }: LoginPanelProps
     <section className="login-panel">
       <div>
         <p className="sidebar-label">Staff access</p>
-        <h2>Sign in to manage hospital photos</h2>
+        <h2>Sign in to manage Briar photos</h2>
         <p>
           Use an invited staff account to upload photos, review permissions, and update searchable details. Public
           self-signup is intentionally disabled for managed pilot workspaces.
@@ -73,7 +73,7 @@ export function LoginPanel({ authSession, onSignIn, onSignOut }: LoginPanelProps
           <input
             autoComplete="email"
             onChange={(event) => setEmail(event.target.value)}
-            placeholder="admin@hospital.org"
+            placeholder="admin@briar.example"
             type="email"
             value={email}
           />

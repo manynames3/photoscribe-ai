@@ -1935,10 +1935,31 @@ a {
   min-width: 0;
 }
 
-.nav-brand > span:last-child {
+.brand-copy {
+  display: grid;
+  gap: 1px;
+  line-height: 1.05;
+  min-width: 0;
+}
+
+.brand-copy strong,
+.brand-copy small {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.brand-copy strong {
+  font-size: 0.98rem;
+  font-weight: 780;
+}
+
+.brand-copy small {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 .brand-mark {
@@ -2008,6 +2029,7 @@ a {
 .staff-gate-panel,
 .workspace-command,
 .locked-search-panel,
+.locked-library-panel,
 .visual-search-row {
   border-radius: 8px;
 }
@@ -2451,6 +2473,13 @@ a {
   text-wrap: balance;
 }
 
+.workspace-management .section-heading h2 {
+  font-family: var(--font-ui);
+  font-size: clamp(1.75rem, 2.35vw, 2.35rem);
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+
 .section-heading p,
 .editorial-card p,
 .feature-card p,
@@ -2706,7 +2735,7 @@ a {
   border-radius: 8px;
   display: grid;
   gap: 1px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.7fr);
   overflow: hidden;
 }
 
@@ -2732,6 +2761,11 @@ a {
   font-size: 0.9rem;
   font-weight: 720;
   overflow: hidden;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.workspace-status-panel .status-email {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2781,10 +2815,6 @@ a {
 
 .workspace-command .search-button {
   padding: 11px 18px;
-}
-
-.workspace-command .preview-notice {
-  display: none;
 }
 
 .workspace-shell .product-workspace {
@@ -2857,6 +2887,67 @@ a {
   font-size: 0.84rem;
   line-height: 1.42;
   margin-top: 2px;
+}
+
+.locked-library-panel {
+  align-items: start;
+  background:
+    linear-gradient(180deg, #ffffff, #f7f9f5),
+    #fff;
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 0.95fr) minmax(280px, 1.05fr);
+  margin-top: 16px;
+  padding: 24px;
+}
+
+.locked-library-panel h2 {
+  font-family: var(--font-ui);
+  font-size: clamp(1.45rem, 2.4vw, 2.1rem);
+  font-weight: 760;
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.locked-library-panel p {
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 12px 0 0;
+}
+
+.access-step-list {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.access-step-list li {
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(18, 28, 24, 0.1);
+  border-left: 4px solid rgba(65, 107, 95, 0.42);
+  padding: 14px;
+}
+
+.access-step-list strong,
+.access-step-list span {
+  display: block;
+}
+
+.access-step-list strong {
+  color: var(--ink);
+  font-size: 0.94rem;
+}
+
+.access-step-list span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.42;
+  margin-top: 4px;
 }
 
 .sidebar-panel,
@@ -3144,6 +3235,7 @@ a {
 
   .workspace-command-header,
   .workspace-shell .product-workspace,
+  .locked-library-panel,
   .request-strip {
     grid-template-columns: 1fr;
   }
@@ -3244,6 +3336,7 @@ a {
   }
 
   .metric-strip,
+  .workspace-status-panel,
   .editorial-grid,
   .landing-product-grid,
   .product-preview-grid,
@@ -3280,6 +3373,7 @@ a {
 
   .sidebar-panel,
   .results-panel,
+  .locked-library-panel,
   .staff-gate-panel,
   .workspace-command,
   .management-section,

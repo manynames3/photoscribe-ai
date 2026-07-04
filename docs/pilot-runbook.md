@@ -14,12 +14,13 @@ This runbook describes how to run a controlled CareFrame pilot for one hospital 
 ## Pre-Pilot Checklist
 
 1. Confirm the public landing page loads.
-2. Confirm `/app` loads and shows either preview mode or the connected AWS-backed workspace.
-3. Run the frontend preview searches: `hospital executive headshot`, `community health event`, and `hospital facilities documentation`.
-4. Open one result and confirm the modal shows end-user fields: recommended use, department, consent, rights, campaign, staff member, and location.
-5. Confirm staff-only tools are hidden when signed out.
-6. Confirm a Cognito admin or reviewer user can sign in.
-7. Confirm a test upload enters the review queue before broad release.
+2. Confirm `/app` loads without exposing search, filters, result cards, signed image links, upload controls, review queue, or admin actions while signed out.
+3. Confirm a Cognito admin or reviewer user can sign in.
+4. Run the frontend preview searches: `hospital executive headshot`, `community health event`, and `hospital facilities documentation`.
+5. Open one result and confirm the modal shows end-user fields: recommended use, department, consent, rights, campaign, staff member, and location.
+6. Confirm a test upload enters the review queue before broad release.
+7. Confirm a reviewer can update consent, rights, visibility, review status, owner department, campaign, and location.
+8. Confirm an admin can invite a staff user and assign the expected role groups.
 
 ## Deployment Setup
 
@@ -86,6 +87,23 @@ A pilot is successful when the buyer can:
 - Identify consent, rights, department owner, and release readiness before use.
 - Route new uploads through review before broader library access.
 - Explain who should own the workflow after the pilot.
+
+## End-User QA Script
+
+Run this with a real deployed backend before handing the workspace to non-technical staff:
+
+1. Signed-out visitor opens `/app` and sees only the private-library access gate.
+2. Staff user signs in and sees search, filters, result shortcuts, and staff tools appropriate to their role.
+3. Staff user searches for a known approved asset and opens the detail modal.
+4. Staff user confirms consent, usage rights, owner department, visibility, and recommended use before reuse.
+5. Staff user uploads one approved test image and sees clear duplicate/upload feedback.
+6. Reviewer loads the review queue and opens the uploaded asset.
+7. Reviewer updates policy fields, saves, and confirms the asset appears in search with the new metadata.
+8. Admin invites a test user, assigns a role group, and confirms the account can sign in.
+9. Operator checks CloudWatch alarms, DLQ depth, API errors, Lambda errors, and billing alert subscription.
+10. Operator runs `scripts/smoke-test.sh` with search, upload, policy update, and invite environment variables.
+
+Do not proceed to real customer media until this QA script passes and the buyer has approved the data-handling rules.
 
 ## Offboarding
 

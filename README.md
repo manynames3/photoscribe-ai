@@ -24,15 +24,17 @@ PhotoScribe AI solves a real enterprise problem: thousands of photos sitting in 
 
 ## Preview Flow
 
-Use the public landing page to understand the product, then open [`/app`](https://photoscribe-ai.pages.dev/app) to try the workspace. If the backend is not configured locally, the frontend falls back to bundled sample results so the product workflow can still be reviewed.
+Use the public landing page to understand the product, then open [`/app`](https://photoscribe-ai.pages.dev/app) to enter the staff workspace. Search results, filters, signed image links, uploads, review queues, and admin actions stay behind staff sign-in. If the backend is not configured locally, signed-in preview sessions can use bundled sample results so the product workflow can still be reviewed without a live AWS stack.
 
-1. Search like a hospital staff request: `hospital executive headshot`, `community health event`, or `hospital facilities documentation`.
-2. Open a result and review the non-technical asset context: recommended use, owner department, consent, rights, campaign, staff names, and location.
-3. Sign in with an invited Cognito staff user to upload files, load the review queue, approve/restrict assets, and add searchable human metadata.
+1. Sign in with an invited Cognito staff user.
+2. Search like a hospital staff request: `hospital executive headshot`, `community health event`, or `hospital facilities documentation`.
+3. Open a result and review the non-technical asset context: recommended use, owner department, consent, rights, campaign, staff names, and location.
+4. Use staff permissions to upload files, load the review queue, approve/restrict assets, and add searchable human metadata.
 
-The public preview is sample-first by design. Private uploads and review tools require staff access because image ingest triggers real AWS processing cost.
+The public surface explains the product; the workspace behaves like a private staff tool. Upload and review tools require staff access because image ingest triggers real AWS processing cost.
 
 For a controlled buyer or hiring-manager walkthrough, use the [pilot runbook](docs/pilot-runbook.md).
+For the concrete staff-ready checklist, use [end-user readiness](docs/end-user-readiness.md).
 
 ## Sellable MVP Direction
 

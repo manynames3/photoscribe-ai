@@ -617,7 +617,9 @@ def _claim_list(value: Any) -> list[str]:
                 if isinstance(decoded, list):
                     return [str(item) for item in decoded if str(item)]
             except json.JSONDecodeError:
-                pass
+                inner = value[1:-1].strip()
+                if inner:
+                    return [item.strip("'\"") for item in re.split(r"[\s,]+", inner) if item.strip("'\"")]
         return [item.strip() for item in value.split(",") if item.strip()]
 
     return []
