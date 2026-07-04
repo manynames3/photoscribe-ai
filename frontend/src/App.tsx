@@ -916,7 +916,9 @@ export function App() {
             </div>
             <div>
               <span>Controls</span>
-              <strong>{authSession ? userGroups.join(", ") || "Staff" : "Locked"}</strong>
+              <strong className="status-roles" title={authSession ? userGroups.join(", ") || "Staff" : "Locked"}>
+                {authSession ? userGroups.join(", ") || "Staff" : "Locked"}
+              </strong>
             </div>
           </div>
         </div>

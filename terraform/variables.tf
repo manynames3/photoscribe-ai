@@ -12,6 +12,14 @@ variable "region" {
 variable "alert_email" {
   description = "Email address subscribed to the development billing alarm."
   type        = string
+
+  validation {
+    condition = (
+      var.alert_email != "change-me@example.com" &&
+      can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.alert_email))
+    )
+    error_message = "Set alert_email to a real email address; do not apply the placeholder change-me@example.com."
+  }
 }
 
 variable "frontend_origin" {

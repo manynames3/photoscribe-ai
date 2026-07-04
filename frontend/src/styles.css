@@ -2765,7 +2765,8 @@ a {
   text-wrap: balance;
 }
 
-.workspace-status-panel .status-email {
+.workspace-status-panel .status-email,
+.workspace-status-panel .status-roles {
   text-overflow: ellipsis;
   white-space: nowrap;
 }

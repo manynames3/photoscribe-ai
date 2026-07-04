@@ -222,9 +222,11 @@ Backend deployment:
 ./scripts/bootstrap-remote-state.sh us-east-1
 cd terraform
 terraform init -backend-config=dev.backend.hcl
-terraform plan -var-file=envs/dev.tfvars -var-file=envs/dev.cloudflare.tfvars
+terraform plan -var-file=envs/dev.tfvars -var-file=envs/dev.cloudflare.tfvars -var='alert_email=you@example.com'
 terraform apply
 ```
+
+`envs/dev.tfvars` keeps `alert_email` as a placeholder so a real contact address is not committed. Pass a real value with `-var='alert_email=...'` for local plans/applies, or configure the `TF_ALERT_EMAIL` GitHub secret for AWS-backed Terraform workflows.
 
 The development SQS ingest worker is disabled by default to avoid idle Lambda
 polling. Set `enable_sqs_worker = true` only for an intentional ingest session,

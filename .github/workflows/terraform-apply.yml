@@ -27,6 +27,7 @@ jobs:
         id: config
         env:
           AWS_APPLY_ROLE_ARN: ${{ secrets.AWS_APPLY_ROLE_ARN }}
+          TF_ALERT_EMAIL: ${{ secrets.TF_ALERT_EMAIL }}
           TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
           TF_LOCK_TABLE: ${{ secrets.TF_LOCK_TABLE }}
         run: |
@@ -37,7 +38,7 @@ jobs:
             ready=false
           fi
 
-          for name in AWS_APPLY_ROLE_ARN TF_STATE_BUCKET TF_LOCK_TABLE; do
+          for name in AWS_APPLY_ROLE_ARN TF_ALERT_EMAIL TF_STATE_BUCKET TF_LOCK_TABLE; do
             if [ -z "${!name}" ]; then
               echo "::notice::Skipping Terraform apply because $name is not configured."
               ready=false
@@ -70,8 +71,10 @@ jobs:
 
       - name: Terraform plan
         if: steps.config.outputs.ready == 'true'
+        env:
+          TF_ALERT_EMAIL: ${{ secrets.TF_ALERT_EMAIL }}
         working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform plan -var-file=envs/dev.tfvars -var-file=envs/dev.cloudflare.tfvars -out=plan.tfplan
+        run: terraform plan -var-file=envs/dev.tfvars -var-file=envs/dev.cloudflare.tfvars -var="alert_email=${TF_ALERT_EMAIL}" -out=plan.tfplan
 
       - name: Terraform apply
         if: steps.config.outputs.ready == 'true'
