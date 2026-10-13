@@ -4,6 +4,7 @@ import { searchPhotos } from "./api";
 import { assetClearance } from "./assetClearance";
 import { currentAuthSession, signOut } from "./auth";
 import { LandingPage } from "./components/LandingPage";
+import { Brand } from "./components/Brand";
 import { AdminPanel } from "./components/AdminPanel";
 import { FilterPanel } from "./components/FilterPanel";
 import { LoginPanel } from "./components/LoginPanel";
@@ -351,7 +352,7 @@ export function App() {
   }, [routeView, isSignedIn, activeWorkspaceCopy.title]);
   const metricCards = [
     {
-      label: "Photos found",
+      label: "Photos shown",
       tone: "neutral",
       value: hasSubmittedSearch ? results.length : "Ready",
     },
@@ -376,11 +377,7 @@ export function App() {
     <main className="workspace-access-page" id="app">
       <header className="workspace-access-header">
         <a className="workspace-brand" href="/" onClick={handleLandingLink}>
-          <span className="workspace-brand-mark">CF</span>
-          <span>
-            <strong>CareFrame</strong>
-            <small>Media desk</small>
-          </span>
+          <Brand />
         </a>
         <a className="workspace-about-link" href="/" onClick={handleLandingLink}>
           About CareFrame
@@ -391,32 +388,12 @@ export function App() {
         <div className="workspace-access-context">
           <div>
             <p className="workspace-overline">{WORKSPACE_HOSPITAL_NAME}</p>
-            <h1>Sign in to your media library.</h1>
+            <h1>Staff sign in</h1>
             <p className="workspace-access-lede">
-              Approved hospital photography, review context, and staff tools stay private until an invited team member
-              signs in.
+              Your hospital's photo library, for authorized staff.
             </p>
           </div>
 
-          <dl className="workspace-access-assurances">
-            <div>
-              <dt>Private by default</dt>
-              <dd>No search results or image links appear before authentication.</dd>
-            </div>
-            <div>
-              <dt>Policy context included</dt>
-              <dd>Consent, rights, visibility, owner, and review state travel with each asset.</dd>
-            </div>
-            <div>
-              <dt>Role-based tools</dt>
-              <dd>Upload, review, and access controls appear only for authorized staff.</dd>
-            </div>
-          </dl>
-
-          <div className="workspace-access-note">
-            <span>Private workspace</span>
-            <p>Search and media content remain hidden until sign-in succeeds.</p>
-          </div>
         </div>
 
         <div className="workspace-login-column">
@@ -444,11 +421,7 @@ export function App() {
       <header className="workspace-topbar">
         <div className="workspace-topbar-branding">
           <a className="workspace-brand" href={WORKSPACE_PATH} onClick={(event) => handleWorkspaceLink(event)}>
-            <span className="workspace-brand-mark">CF</span>
-            <span>
-              <strong>CareFrame</strong>
-              <small>Media desk</small>
-            </span>
+            <Brand />
           </a>
           <span className="workspace-topbar-divider" />
           <div className="workspace-hospital-name">
@@ -495,21 +468,12 @@ export function App() {
             </nav>
           </div>
 
-          <div className="workspace-sidebar-footer">
-            <span>Private library</span>
-            <p>Signed image links and role-based access controls protect hospital media.</p>
-            <a href="/" onClick={handleLandingLink}>
-              CareFrame overview
-            </a>
-          </div>
         </aside>
 
         <section className="workspace-stage">
           <header className="workspace-page-header">
             <div>
-              <p className="workspace-overline">{activeWorkspaceCopy.eyebrow}</p>
               <h1>{activeWorkspaceCopy.title}</h1>
-              <p>{activeWorkspaceCopy.description}</p>
             </div>
             {permittedWorkspaceView === "library" ? (
               <span className={`workspace-environment${IS_PREVIEW_MODE ? " is-sample" : ""}`}>
@@ -535,8 +499,8 @@ export function App() {
                 />
               </section>
 
-              {showMetrics ? (
-                <div className="workspace-metric-strip" aria-label="Photo library status">
+              {showMetrics && hasSubmittedSearch && !isLoading ? (
+                <div className="workspace-metric-strip" aria-label="Status of the results shown">
                   {metricCards.map((metric) => (
                     <div className={`workspace-metric is-${metric.tone}`} key={metric.label}>
                       <span>{metric.label}</span>
@@ -645,9 +609,8 @@ export function App() {
                             onClick={() => handleWorkflowSearch(workflow.query)}
                             type="button"
                           >
-                            <span>{workflow.status}</span>
                             <strong>{workflow.label}</strong>
-                            <p>{workflow.detail}</p>
+                            <p>{workflow.query}</p>
                           </button>
                         ))}
                       </div>
@@ -697,6 +660,7 @@ export function App() {
       <PhotoModal
         authSession={authSession}
         canCurate={canReview}
+        initialTab={permittedWorkspaceView === "review" ? "edit" : "overview"}
         onPhotoUpdated={handlePhotoUpdated}
         photo={selectedPhoto}
         onClose={() => setSelectedPhoto(null)}

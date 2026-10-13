@@ -1,17 +1,17 @@
 /* CareFrame public landing page. Every rule is scoped to .careframe-landing. */
 
 .careframe-landing {
-  --cfl-forest: #123b33;
-  --cfl-forest-deep: #0c2a24;
-  --cfl-charcoal: #1d2321;
-  --cfl-muted: #4a5551;
-  --cfl-rust: #a8471f;
+  --cfl-forest: var(--cf-brand);
+  --cfl-forest-deep: var(--cf-brand-dark);
+  --cfl-charcoal: var(--cf-ink);
+  --cfl-muted: var(--cf-muted);
+  --cfl-rust: var(--cf-brand);
   --cfl-white: #ffffff;
-  --cfl-tint: #eef2f1;
-  --cfl-line: #d3dbd8;
+  --cfl-tint: var(--cf-ground);
+  --cfl-line: var(--cf-line);
   --cfl-nav-height: 64px;
-  --cfl-display: Georgia, "Times New Roman", serif;
-  --cfl-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --cfl-display: var(--cf-serif);
+  --cfl-body: var(--cf-sans);
 
   background: var(--cfl-white);
   color: var(--cfl-charcoal);
@@ -73,10 +73,7 @@
   outline-offset: 2px;
 }
 
-.careframe-landing .cfl-nav a:focus-visible,
-.careframe-landing .cfl-nav button:focus-visible,
 .careframe-landing .cfl-hero a:focus-visible,
-.careframe-landing .cfl-section-forest a:focus-visible,
 .careframe-landing .cfl-footer a:focus-visible {
   outline-color: var(--cfl-white);
 }
@@ -109,9 +106,9 @@
 
 /* Navigation */
 .careframe-landing .cfl-nav {
-  background: var(--cfl-forest-deep);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
-  color: var(--cfl-white);
+  background: var(--cfl-white);
+  border-bottom: 1px solid var(--cfl-line);
+  color: var(--cfl-charcoal);
   position: sticky;
   top: 0;
   z-index: 50;
@@ -131,49 +128,30 @@
   min-height: 44px;
 }
 
-.careframe-landing .cfl-mark {
+.careframe-landing .cfl-staff-access {
   align-items: center;
-  background: #e5f0ec;
-  border-radius: 6px;
-  color: #174d43;
+  border-bottom: 1px solid var(--cfl-forest);
   display: inline-flex;
-  font-family: system-ui, sans-serif;
-  font-size: 13px;
-  font-weight: 800;
-  height: 36px;
-  justify-content: center;
-  width: 36px;
-  flex: none;
+  font-size: 15px;
+  font-weight: 600;
+  min-height: 44px;
+  margin-left: auto;
+  margin-right: 16px;
+  white-space: nowrap;
 }
 
-.careframe-landing .cfl-mark-cross {
-  fill: #d9784a;
-}
-
-.careframe-landing .cfl-brand-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.1;
-}
-
-.careframe-landing .cfl-brand-text strong {
-  font-family: var(--cfl-body);
-  font-size: 22px;
-  font-weight: 700;
-}
-
-.careframe-landing .cfl-brand-text span {
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 12px;
-  margin-top: 3px;
-}
+.careframe-landing .cfl-menu-button { order: 3; }
+.careframe-landing .cfl-step-image { aspect-ratio: 3 / 2; object-fit: cover; object-position: center 30%; width: 100%; margin-bottom: 22px; }
+.careframe-landing .cfl-section-forest .cfl-eyebrow { color: var(--cfl-forest); }
+.careframe-landing .cfl-section-forest .cfl-eyebrow::before { background: currentColor; }
+.careframe-landing .cfl-section-forest .cfl-btn-light { border-color: var(--cfl-line); }
 
 .careframe-landing .cfl-menu-button {
   align-items: center;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  border-radius: 6px;
-  color: var(--cfl-white);
+  border: 0;
+  border-radius: 2px;
+  color: var(--cfl-charcoal);
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -182,13 +160,13 @@
   justify-content: center;
   min-height: 44px;
   min-width: 44px;
-  padding: 0 16px;
+  padding: 0 4px;
   transition: background-color 150ms ease, border-color 150ms ease;
 }
 
 .careframe-landing .cfl-menu-button:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: var(--cfl-white);
+  background: var(--cfl-tint);
+  border-color: var(--cfl-line);
 }
 
 .careframe-landing .cfl-chevron {
@@ -208,8 +186,8 @@
 }
 
 .careframe-landing .cfl-menu {
-  background: var(--cfl-forest-deep);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  background: var(--cfl-white);
+  border-bottom: 1px solid var(--cfl-line);
   display: none;
   left: 0;
   padding: 4px 20px 20px;
@@ -224,14 +202,14 @@
 
 .careframe-landing .cfl-menu a {
   align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  border-bottom: 1px solid var(--cfl-line);
   display: flex;
   font-weight: 500;
   min-height: 52px;
 }
 
 .careframe-landing .cfl-menu a:hover {
-  color: #f0b99e;
+  color: var(--cfl-forest);
 }
 
 .careframe-landing .cfl-menu li:last-child a {
@@ -258,7 +236,7 @@
 .careframe-landing .cfl-btn {
   align-items: center;
   border: 2px solid transparent;
-  border-radius: 6px;
+  border-radius: 2px;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -271,15 +249,15 @@
   transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
-.careframe-landing .cfl-btn-rust {
+.careframe-landing .cfl-btn-primary {
   background: var(--cfl-rust);
   border-color: var(--cfl-rust);
   color: var(--cfl-white);
 }
 
-.careframe-landing .cfl-btn-rust:hover {
-  background: #8c3a17;
-  border-color: #8c3a17;
+.careframe-landing .cfl-btn-primary:hover {
+  background: var(--cfl-forest-deep);
+  border-color: var(--cfl-forest-deep);
 }
 
 .careframe-landing .cfl-btn-outline {
@@ -346,16 +324,16 @@
 }
 
 .careframe-landing .cfl-hero-scrim {
-  background: rgba(9, 32, 27, 0.6);
+  background: rgba(0, 0, 0, 0.54);
   inset: 0;
   position: absolute;
 }
 
 .careframe-landing .cfl-hero-content {
-  padding-bottom: 64px;
+  padding-bottom: 80px;
   padding-top: 40px;
   position: relative;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  text-shadow: none;
 }
 
 .careframe-landing .cfl-eyebrow {
@@ -370,10 +348,10 @@
 }
 
 .careframe-landing .cfl-eyebrow::before {
-  background: #e08a5c;
+  background: currentColor;
   content: "";
   flex: none;
-  height: 3px;
+  height: 1px;
   width: 28px;
 }
 
@@ -387,8 +365,8 @@
 
 .careframe-landing h1 {
   font-family: var(--cfl-display);
-  font-size: 52px;
-  font-weight: 700;
+  font-size: 48px;
+  font-weight: 400;
   line-height: 1.02;
 }
 
@@ -396,7 +374,7 @@
   font-size: 18px;
   line-height: 1.55;
   margin-top: 16px;
-  max-width: 34rem;
+  max-width: 32rem;
 }
 
 .careframe-landing .cfl-actions {
@@ -414,14 +392,15 @@
 }
 
 .careframe-landing .cfl-caption-hero {
-  background: rgba(9, 32, 27, 0.82);
-  border-radius: 4px;
-  bottom: 14px;
+  background: transparent;
+  border-radius: 0;
+  bottom: 24px;
   color: rgba(255, 255, 255, 0.95);
-  left: 20px;
+  left: max(20px, calc((100% - 1100px) / 2));
   margin: 0;
-  padding: 3px 8px;
+  padding: 0;
   position: absolute;
+  max-width: calc(100% - 40px);
 }
 
 /* Sections */
@@ -434,20 +413,20 @@
 }
 
 .careframe-landing .cfl-section-forest {
-  background: var(--cfl-forest);
-  color: var(--cfl-white);
+  background: var(--cfl-tint);
+  color: var(--cfl-charcoal);
 }
 
 .careframe-landing h2 {
   font-family: var(--cfl-display);
   font-size: 32px;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.12;
 }
 
 .careframe-landing h3 {
   font-size: 19px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.3;
 }
 
@@ -458,7 +437,7 @@
 }
 
 .careframe-landing .cfl-section-forest .cfl-lead {
-  color: rgba(255, 255, 255, 0.86);
+  color: var(--cfl-muted);
 }
 
 .careframe-landing .cfl-note {
@@ -475,8 +454,8 @@
 }
 
 .careframe-landing .cfl-steps li {
-  border-top: 2px solid var(--cfl-charcoal);
-  padding-top: 18px;
+  border-top: 1px solid var(--cfl-line);
+  padding-top: 24px;
 }
 
 .careframe-landing .cfl-step-number {
@@ -485,7 +464,7 @@
   font-family: var(--cfl-display);
   font-size: 18px;
   font-variant-numeric: lining-nums;
-  font-weight: 700;
+  font-weight: 400;
   margin-bottom: 6px;
 }
 
@@ -493,6 +472,7 @@
   font-family: var(--cfl-display);
   font-size: 30px;
   line-height: 1.1;
+  font-weight: 400;
 }
 
 .careframe-landing .cfl-steps p {
@@ -528,7 +508,7 @@
 
 .careframe-landing .cfl-figure img {
   aspect-ratio: 4 / 3;
-  border-radius: 8px;
+  border-radius: 0;
   object-fit: cover;
   width: 100%;
 }
@@ -544,7 +524,7 @@
 }
 
 .careframe-landing .cfl-details dt {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .careframe-landing .cfl-details dd {
@@ -564,25 +544,26 @@
 }
 
 .careframe-landing .cfl-privacy-list li {
-  border-top: 1px solid rgba(255, 255, 255, 0.28);
+  border-top: 1px solid var(--cfl-line);
   padding: 18px 0;
 }
 
 .careframe-landing .cfl-privacy-list li:last-child {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.28);
+  border-bottom: 1px solid var(--cfl-line);
 }
 
 .careframe-landing .cfl-privacy-list p {
-  color: rgba(255, 255, 255, 0.86);
+  color: var(--cfl-muted);
   margin-top: 4px;
 }
 
 /* Pilot form */
 .careframe-landing .cfl-form-panel {
-  background: var(--cfl-tint);
-  border: 1px solid var(--cfl-line);
-  border-radius: 8px;
-  padding: 20px;
+  background: var(--cfl-white);
+  border: 0;
+  border-top: 1px solid var(--cfl-line);
+  border-radius: 0;
+  padding: 24px 0;
 }
 
 .careframe-landing .cfl-field {
@@ -688,6 +669,7 @@
   color: var(--cfl-white);
   font-family: var(--cfl-display);
   font-size: 20px;
+  font-weight: 400;
 }
 
 .careframe-landing .cfl-footer ul {
@@ -711,6 +693,14 @@
 }
 
 /* 640px and up */
+@media (max-width: 380px) {
+  .careframe-landing .cf-brand-symbol { width: 28px; height: 28px; }
+  .careframe-landing .cf-brand { gap: 8px; }
+  .careframe-landing .cf-brand-name { font-size: 21px; }
+  .careframe-landing .cfl-staff-access { font-size: 14px; margin-right: 8px; }
+  .careframe-landing .cfl-menu-button { font-size: 14px; gap: 6px; }
+}
+
 @media (min-width: 640px) {
   .careframe-landing .cfl-wrap {
     padding-left: 32px;
@@ -723,7 +713,7 @@
   }
 
   .careframe-landing .cfl-caption-hero {
-    left: 32px;
+    left: max(32px, calc((100% - 1116px) / 2));
   }
 
   .careframe-landing h1 {
@@ -752,7 +742,7 @@
   }
 
   .careframe-landing .cfl-form-panel {
-    padding: 28px;
+    padding: 28px 0;
   }
 
   .careframe-landing .cfl-footer-bar {
@@ -774,7 +764,7 @@
   }
 
   .careframe-landing .cfl-caption-hero {
-    left: 40px;
+    left: max(40px, calc((100% - 1100px) / 2));
   }
 
   .careframe-landing .cfl-menu-button {
@@ -788,6 +778,7 @@
     display: block;
     padding: 0;
     position: static;
+    margin-left: auto;
   }
 
   .careframe-landing .cfl-menu ul {
@@ -805,8 +796,8 @@
   }
 
   .careframe-landing .cfl-menu a:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--cfl-white);
+    background: var(--cfl-tint);
+    color: var(--cfl-forest);
   }
 
   .careframe-landing .cfl-menu .cfl-signin {
@@ -825,7 +816,7 @@
   }
 
   .careframe-landing .cfl-hero-content {
-    padding-bottom: 72px;
+    padding-bottom: 88px;
     padding-top: 64px;
   }
 

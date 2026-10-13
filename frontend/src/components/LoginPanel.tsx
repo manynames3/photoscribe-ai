@@ -15,12 +15,14 @@ export function LoginPanel({ authSession, onSignIn, onSignOut }: LoginPanelProps
   const [password, setPassword] = useState("");
   const [requiresNewPassword, setRequiresNewPassword] = useState(false);
   const [status, setStatus] = useState("");
+  const [isError, setIsError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
     setStatus("");
+    setIsError(false);
 
     try {
       const session = requiresNewPassword ? await completeNewPassword(newPassword) : await signIn(email, password);
@@ -34,6 +36,7 @@ export function LoginPanel({ authSession, onSignIn, onSignOut }: LoginPanelProps
         setRequiresNewPassword(true);
         setStatus("Choose a permanent password to finish first sign-in.");
       } else {
+        setIsError(true);
         setStatus(error instanceof Error ? error.message : "Sign in failed.");
       }
     } finally {
@@ -59,8 +62,6 @@ export function LoginPanel({ authSession, onSignIn, onSignOut }: LoginPanelProps
   return (
     <section className="login-panel">
       <div className="login-panel-copy">
-        <p className="sidebar-label">Secure staff access</p>
-        <h2>Welcome back</h2>
         <p>Use the account issued by your CareFrame administrator.</p>
       </div>
 
@@ -105,7 +106,7 @@ export function LoginPanel({ authSession, onSignIn, onSignOut }: LoginPanelProps
         </button>
       </form>
       {status ? (
-        <p aria-live="polite" className="curator-status" role="status">
+        <p aria-live={isError ? "assertive" : "polite"} className="curator-status" role={isError ? "alert" : "status"}>
           {status}
         </p>
       ) : null}

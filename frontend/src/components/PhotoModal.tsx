@@ -7,6 +7,7 @@ import type { AuthSession, PhotoResult } from "../types";
 type PhotoModalProps = {
   authSession: AuthSession | null;
   canCurate: boolean;
+  initialTab?: DossierTab;
   onClose: () => void;
   onPhotoUpdated?: (photo: PhotoResult) => void;
   photo: PhotoResult | null;
@@ -92,7 +93,7 @@ function splitValues(value: string) {
     .filter(Boolean);
 }
 
-export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, photo }: PhotoModalProps) {
+export function PhotoModal({ authSession, canCurate, initialTab = "overview", onClose, onPhotoUpdated, photo }: PhotoModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -163,9 +164,9 @@ export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, ph
     setStaffNames(joinValues(photo.staffNames));
     setUsageRights(photo.usageRights ?? "unknown");
     setVisibility(photo.visibility ?? "library");
-    setActiveDossierTab("overview");
+    setActiveDossierTab(initialTab === "edit" && !canCurate ? "overview" : initialTab);
     setTagStatus("");
-  }, [photo?.key]);
+  }, [photo?.key, initialTab, canCurate]);
 
   if (!photo) {
     return null;
@@ -255,8 +256,6 @@ export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, ph
     if (preset === "compliance") {
       setReviewStatus("pending_review");
       setVisibility("restricted");
-      setConsentStatus("missing");
-      setUsageRights("unknown");
       setGroups(["admin", "reviewer", "compliance"]);
       return;
     }
@@ -280,7 +279,7 @@ export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, ph
       }}
       role="dialog"
     >
-      <div className="modal-panel">
+      <div className={`modal-panel${activeDossierTab === "edit" ? " is-editing" : ""}`}>
         <button className="modal-close" onClick={onClose} type="button">
           Close
         </button>
@@ -304,10 +303,10 @@ export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, ph
             </div>
 
             <h3 id="photo-detail-title">{photo.seoCaption || photo.description}</h3>
-            <p>{photo.description}</p>
+            {activeDossierTab !== "edit" ? <p>{photo.description}</p> : null}
           </div>
 
-          <div className="dossier-tabs" aria-label="Photo details sections">
+          <div className="dossier-tabs" role="group" aria-label="Photo details sections">
             {DOSSIER_TABS.filter((tab) => tab.key !== "edit" || canCurate).map((tab) => (
               <button
                 aria-pressed={activeDossierTab === tab.key}
@@ -419,27 +418,57 @@ export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, ph
 
           {canCurate && activeDossierTab === "edit" ? (
           <form className="curator-panel" onSubmit={handleTagSubmit}>
-            <div>
-              <p className="sidebar-label">Photo details</p>
-              <h4>Review and update photo</h4>
-              <p>
-                Add details the system cannot know, then approve, restrict, or reject the photo
-                before broader staff use.
-              </p>
-            </div>
+            <fieldset className="curator-field-grid curator-clearance">
+              <legend>Clearance and decision</legend>
+              <label>
+                <span>Consent status</span>
+                <select onChange={(event) => setConsentStatus(event.target.value)} value={consentStatus}>
+                  <option value="missing">Missing</option>
+                  <option value="approved">Approved</option>
+                  <option value="not_required">Not required</option>
+                  <option value="restricted">Restricted</option>
+                  <option value="expired">Expired</option>
+                </select>
+              </label>
+              <label>
+                <span>Usage rights</span>
+                <select onChange={(event) => setUsageRights(event.target.value)} value={usageRights}>
+                  <option value="unknown">Unknown</option>
+                  <option value="internal_only">Internal only</option>
+                  <option value="public_release">Public release</option>
+                  <option value="campaign_limited">Campaign limited</option>
+                  <option value="do_not_use">Do not use</option>
+                </select>
+              </label>
+              <label>
+                <span>Review status</span>
+                <select onChange={(event) => setReviewStatus(event.target.value)} value={reviewStatus}>
+                  <option value="pending_review">Pending review</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </label>
+              <label>
+                <span>Visibility</span>
+                <select onChange={(event) => setVisibility(event.target.value)} value={visibility}>
+                  <option value="library">Shared library</option>
+                  <option value="restricted">Restricted</option>
+                </select>
+              </label>
+            </fieldset>
 
             <div className="review-preset-grid" aria-label="Review decision shortcuts">
               <button onClick={() => applyReviewPreset("approve")} type="button">
                 <strong>Approve for library</strong>
-                <span>Internal use with complete consent and rights fields.</span>
+                <span>Share with the library; keep recorded rights.</span>
               </button>
               <button onClick={() => applyReviewPreset("compliance")} type="button">
                 <strong>Send to compliance</strong>
-                <span>Restricted until consent or release details are verified.</span>
+                <span>Limit access; keep recorded consent and rights.</span>
               </button>
               <button onClick={() => applyReviewPreset("restrict")} type="button">
                 <strong>Do not use</strong>
-                <span>Keep restricted and mark as unavailable for reuse.</span>
+                <span>Restrict access and replace rights with Do not use.</span>
               </button>
             </div>
 
@@ -494,45 +523,6 @@ export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, ph
               />
             </label>
 
-            <label>
-              <span>Review status</span>
-              <select onChange={(event) => setReviewStatus(event.target.value)} value={reviewStatus}>
-                <option value="pending_review">Pending review</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </label>
-
-            <div className="curator-field-grid">
-              <label>
-                <span>Visibility</span>
-                <select onChange={(event) => setVisibility(event.target.value)} value={visibility}>
-                  <option value="library">Shared library</option>
-                  <option value="restricted">Restricted</option>
-                </select>
-              </label>
-              <label>
-                <span>Consent status</span>
-                <select onChange={(event) => setConsentStatus(event.target.value)} value={consentStatus}>
-                  <option value="missing">Missing</option>
-                  <option value="approved">Approved</option>
-                  <option value="not_required">Not required</option>
-                  <option value="restricted">Restricted</option>
-                  <option value="expired">Expired</option>
-                </select>
-              </label>
-              <label>
-                <span>Usage rights</span>
-                <select onChange={(event) => setUsageRights(event.target.value)} value={usageRights}>
-                  <option value="unknown">Unknown</option>
-                  <option value="internal_only">Internal only</option>
-                  <option value="public_release">Public release</option>
-                  <option value="campaign_limited">Campaign limited</option>
-                  <option value="do_not_use">Do not use</option>
-                </select>
-              </label>
-            </div>
-
             <div>
               <span className="curator-field-label">Who can see restricted photos</span>
               <div className="filter-pill-row">
@@ -556,12 +546,13 @@ export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, ph
               </div>
             </div>
 
-            <button className="search-button" disabled={isSavingTags || photo.source !== "api"} type="submit">
-              {isSavingTags ? "Saving..." : "Save review decision"}
-            </button>
-
-            {tagStatus ? <p className="curator-status">{tagStatus}</p> : null}
-            {photo.source !== "api" ? <p className="curator-status">Editing is available for private library photos.</p> : null}
+            <div className="curator-save-bar">
+              <button className="search-button" disabled={isSavingTags || photo.source !== "api"} type="submit">
+                {isSavingTags ? "Saving..." : "Save review decision"}
+              </button>
+              {tagStatus ? <p className="curator-status" role="status">{tagStatus}</p> : null}
+              {photo.source !== "api" ? <p className="curator-status">Editing is available for private library photos.</p> : null}
+            </div>
           </form>
           ) : null}
         </div>

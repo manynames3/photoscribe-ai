@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from "react";
 
 import "../landing.css";
+import { Brand } from "./Brand";
 
 export interface LandingPageProps {
   onWorkspace: (event: MouseEvent<HTMLAnchorElement>) => void;
@@ -22,17 +23,23 @@ const WORKFLOW_STEPS = [
   {
     number: "01",
     title: "Find",
-    text: "Search the way people ask for photos: “physician speaking with a family” or “approved lobby photo.” No folder names or filenames needed.",
+    image: "/media/portrait.jpg",
+    imageAlt: "Illustrative staff portrait",
+    text: "Search by what is in the photo, not what someone named the file. Try “physician speaking with a family,” then narrow the results by department, location, or review status.",
   },
   {
     number: "02",
-    title: "Verify",
-    text: "Open a result to see its owner department, consent status, usage rights, campaign, and location before anyone reuses it.",
+    title: "Check",
+    image: "/media/campus.jpg",
+    imageAlt: "Illustrative hospital campus photograph",
+    text: "See the recorded consent status, usage rights, and responsible department. Check those details against your intended use before sharing the photo.",
   },
   {
     number: "03",
     title: "Review",
-    text: "New uploads are held for review by default. Staff add what software cannot infer, then decide what becomes available.",
+    image: "/media/team.jpg",
+    imageAlt: "Illustrative team photograph",
+    text: "New uploads start in review. Reviewers record consent and usage rights, then decide whether to approve the photo and who can access it.",
   },
 ];
 
@@ -44,8 +51,8 @@ const AUDIENCES = [
 
 const POLICY_DETAILS = [
   { term: "Owner department", detail: "Who is responsible for the image and who to ask about it." },
-  { term: "Consent status", detail: "Whether the people shown have given consent, recorded by a reviewer." },
-  { term: "Usage rights", detail: "Where an image may and may not be used." },
+  { term: "Consent status", detail: "The consent status recorded by your reviewers, including missing or unknown consent." },
+  { term: "Usage rights", detail: "Recorded permissions and restrictions, such as internal-only or campaign-specific use." },
   { term: "Campaign and location", detail: "The project, event, or place the photo belongs to." },
   { term: "Visibility and approval", detail: "Whether an asset is approved, pending, or restricted to certain roles." },
 ];
@@ -53,15 +60,15 @@ const POLICY_DETAILS = [
 const PRIVACY_ITEMS = [
   {
     title: "Private library",
-    text: "Originals are kept in private storage and shown to signed-in staff through signed image links.",
+    text: "Photo files are stored privately. Staff must sign in and have the required access to view them.",
   },
   {
     title: "Staff accounts and roles",
-    text: "The workspace requires a staff sign-in. Role groups shape what each person can see and do.",
+    text: "Administrators assign access for searching, uploading, reviewing, and managing staff accounts.",
   },
   {
     title: "Pending review by default",
-    text: "New uploads wait for a reviewer instead of appearing in search right away.",
+    text: "Reviewers can access new uploads while they are pending. Other staff cannot view them until they are approved and their access allows it.",
   },
   {
     title: "Public page, private library",
@@ -79,10 +86,6 @@ const USE_CASE_OPTIONS = [
 ];
 
 const EMPTY_FORM = { name: "", email: "", hospital: "", team: "", useCase: "" };
-
-function BrandMark() {
-  return <span className="cfl-mark" aria-hidden="true">CF</span>;
-}
 
 export function LandingPage({ onWorkspace, contactEmail }: LandingPageProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -163,7 +166,7 @@ export function LandingPage({ onWorkspace, contactEmail }: LandingPageProps) {
 
     const firstInvalid = (["name", "email", "hospital"] as FieldName[]).find((field) => errors[field]);
     if (firstInvalid) {
-      setFormError("The request is not ready. Fix the fields marked below.");
+      setFormError("Check the highlighted fields before continuing.");
       const control = formRef.current?.elements.namedItem(firstInvalid);
       if (control instanceof HTMLElement) control.focus();
       return;
@@ -217,11 +220,7 @@ export function LandingPage({ onWorkspace, contactEmail }: LandingPageProps) {
       <header className="cfl-nav" ref={headerRef}>
         <div className="cfl-wrap cfl-nav-bar">
           <a className="cfl-brand" href="#top" aria-label="CareFrame Media desk, top of page">
-            <BrandMark />
-            <span className="cfl-brand-text">
-              <strong>CareFrame</strong>
-              <span>Media desk</span>
-            </span>
+            <Brand />
           </a>
 
           <button
@@ -245,13 +244,11 @@ export function LandingPage({ onWorkspace, contactEmail }: LandingPageProps) {
                   </a>
                 </li>
               ))}
-              <li>
-                <a className="cfl-signin" href="/app" onClick={handleWorkspaceClick}>
-                  Staff sign in
-                </a>
-              </li>
             </ul>
           </nav>
+          <a className="cfl-staff-access" href="/app" onClick={handleWorkspaceClick}>
+            Staff sign in
+          </a>
         </div>
       </header>
 
@@ -267,14 +264,14 @@ export function LandingPage({ onWorkspace, contactEmail }: LandingPageProps) {
           />
           <div className="cfl-hero-scrim" />
           <div className="cfl-wrap cfl-hero-content">
-            <p className="cfl-eyebrow">Media desk for hospital communications, HR, and facilities</p>
+            <p className="cfl-eyebrow">The hospital media library</p>
             <h1 id="cfl-hero-title">CareFrame</h1>
             <p className="cfl-hero-lede">
-              A private hospital media library. Find the right photo, check that it is cleared for use, and keep new
-              uploads in review until staff approve them.
+              Find the right photo. Check its usage rights.
+              A private media library for hospital communications, HR, and facilities.
             </p>
             <div className="cfl-actions">
-              <a className="cfl-btn cfl-btn-rust" href="#pilot">
+              <a className="cfl-btn cfl-btn-primary" href="#pilot">
                 Request a managed pilot
               </a>
               <a className="cfl-btn cfl-btn-outline" href="#workflow">
@@ -282,21 +279,22 @@ export function LandingPage({ onWorkspace, contactEmail }: LandingPageProps) {
               </a>
             </div>
           </div>
-          <p className="cfl-caption cfl-caption-hero">Illustrative campus photography</p>
+          <p className="cfl-caption cfl-caption-hero">Public illustrative photography. Staff media stays private.</p>
         </section>
 
         <section aria-labelledby="cfl-workflow-title" className="cfl-section" id="workflow">
           <div className="cfl-wrap">
             <div className="cfl-heading">
               <p className="cfl-eyebrow cfl-eyebrow-dark">How it works</p>
-              <h2 id="cfl-workflow-title">Find it. Verify it. Review it.</h2>
+              <h2 id="cfl-workflow-title">From photo request to approved image.</h2>
               <p className="cfl-lead">
-                Three steps replace the search through shared drives, inboxes, and desktop folders.
+                Search one library, check the recorded permissions, and keep review decisions with the photo.
               </p>
             </div>
             <ol className="cfl-steps">
               {WORKFLOW_STEPS.map((step) => (
                 <li key={step.number}>
+                  <img className="cfl-step-image" src={step.image} alt={step.imageAlt} loading="lazy" width={640} height={426} />
                   <span className="cfl-step-number" aria-hidden="true">
                     {step.number}
                   </span>
@@ -333,8 +331,8 @@ export function LandingPage({ onWorkspace, contactEmail }: LandingPageProps) {
               <p className="cfl-eyebrow cfl-eyebrow-dark">Policy details</p>
               <h2 id="cfl-policy-title">Every photo carries its context.</h2>
               <p className="cfl-lead">
-                Reviewers record the details that decide whether an image can be reused, so the answer travels with the
-                photo instead of living in someone’s inbox.
+                Keep consent status, usage rights, and the responsible department alongside each image.
+                Your team can check the record without retracing an email conversation.
               </p>
               <dl className="cfl-details">
                 {POLICY_DETAILS.map((item) => (
@@ -354,8 +352,8 @@ export function LandingPage({ onWorkspace, contactEmail }: LandingPageProps) {
               <p className="cfl-eyebrow">Privacy and access</p>
               <h2 id="cfl-privacy-title">A private library for authorized staff.</h2>
               <p className="cfl-lead">
-                Policy fields record your reviewers’ decisions. They support your hospital’s own approval process and
-                do not replace it.
+                Your hospital decides who can access photos and how they are approved.
+                CareFrame records those decisions; it does not verify consent or replace your approval process.
               </p>
               <a className="cfl-btn cfl-btn-light" href="/app" onClick={handleWorkspaceClick}>
                 Staff sign in
@@ -376,13 +374,15 @@ export function LandingPage({ onWorkspace, contactEmail }: LandingPageProps) {
           <div className="cfl-wrap cfl-split cfl-split-pilot">
             <div className="cfl-split-copy">
               <p className="cfl-eyebrow cfl-eyebrow-dark">Managed pilot</p>
-              <h2 id="cfl-pilot-title">Start with one library.</h2>
+              <h2 id="cfl-pilot-title">Start with your team.</h2>
               <p className="cfl-lead">
-                A managed pilot sets up a private library with your team, works through a first batch of approved photos
-                with your reviewers, and shows how requests get answered in practice.
+                Tell us how your team finds and approves photos today. Start a conversation about a managed pilot
+                built around your library, reviewers, and first use case.
               </p>
               <p className="cfl-note">
-                Nothing is submitted from this page. Your request is prepared here and sent only when you send it.
+                {hasContactEmail
+                  ? "Prepare an email request, then send it from your email app. Nothing is sent from this page."
+                  : "Prepare a request summary to share with your CareFrame contact. Nothing is sent from this page."}
               </p>
             </div>
 
@@ -477,8 +477,8 @@ export function LandingPage({ onWorkspace, contactEmail }: LandingPageProps) {
                 {formError ? <p className="cfl-form-error">{formError}</p> : null}
                 {prepared && prepared.viaEmail ? (
                   <p>
-                    Your email draft is opening. The request has not been sent until you send it from your email app. If
-                    nothing opened, copy the text below.
+                    Request prepared; it has not been sent. If your email app opened, review the draft there and send
+                    it when ready. Otherwise, copy the request below.
                   </p>
                 ) : null}
                 {prepared && !prepared.viaEmail ? <p>Request prepared; it has not been sent.</p> : null}

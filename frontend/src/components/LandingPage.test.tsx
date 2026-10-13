@@ -26,6 +26,14 @@ async function fillInput(container: HTMLElement, name: string, value: string) {
 }
 
 describe("Public pilot page", () => {
+  it("describes recorded permissions and reviewer access without promising consent verification", async () => {
+    const container = await renderLanding();
+    expect(container.querySelector(".cfl-hero-lede")?.textContent).toContain("Check its usage rights.");
+    expect(container.querySelector("#privacy")?.textContent).toContain("it does not verify consent");
+    expect(container.querySelector("#privacy")?.textContent).toContain("Reviewers can access new uploads while they are pending.");
+    expect(container.querySelector("#pilot")?.textContent).toContain("Nothing is sent from this page.");
+  });
+
   it("closes the mobile menu on Escape and returns focus", async () => {
     const container = await renderLanding();
     const button = container.querySelector<HTMLButtonElement>(".cfl-menu-button")!;

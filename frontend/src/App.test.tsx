@@ -70,7 +70,9 @@ describe("App workspace access", () => {
     const container = await renderApp();
 
     expect(container.textContent).toContain("Briar University Hospital");
-    expect(container.textContent).toContain("Sign in to your media library.");
+    expect(container.textContent).toContain("Staff sign in");
+    expect(container.querySelector(".cf-brand-symbol")).not.toBeNull();
+    expect(container.textContent).not.toContain("Private by default");
     expect(container.textContent).not.toMatch(/\bdemo\b/i);
     expect(container.textContent).not.toContain("Sample data");
     expect(container.querySelector(".login-panel")).not.toBeNull();

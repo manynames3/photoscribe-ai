@@ -80,8 +80,8 @@ export function ReviewQueue({ canReview, onOpen, revision = 0 }: ReviewQueueProp
               <span>
                 <strong>{item.seoCaption || item.description}</strong>
                 <small>
-                  {item.ownerDepartment || "Unassigned"} · {item.consentStatus || "missing consent"} ·{" "}
-                  {item.usageRights || "unknown rights"}
+                  {item.ownerDepartment || "Unassigned"} · {(item.consentStatus || "missing consent").replace(/_/g, " ")} ·{" "}
+                  {(item.usageRights || "unknown rights").replace(/_/g, " ")}
                 </small>
                 <em>{reviewReason(item)}</em>
               </span>

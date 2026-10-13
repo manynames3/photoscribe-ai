@@ -7,6 +7,9 @@ export default defineConfig({
     global: "globalThis",
   },
   plugins: [react()],
+  server: {
+    watch: { usePolling: true, interval: 300 },
+  },
   test: {
     environment: "jsdom",
   },

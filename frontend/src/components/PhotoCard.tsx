@@ -10,14 +10,6 @@ function labelize(value: string | undefined) {
   return value ? value.replace(/_/g, " ") : "not classified";
 }
 
-function libraryLabel(result: PhotoResult) {
-  if (result.visibility) {
-    return labelize(result.visibility);
-  }
-
-  return result.source === "api" ? "library" : "example";
-}
-
 function policyClass(value: string | undefined) {
   if (value === "approved") {
     return " is-approved";
@@ -32,8 +24,8 @@ function policyClass(value: string | undefined) {
 
 export function PhotoCard({ onOpen, result }: PhotoCardProps) {
   const department = result.ownerDepartment || "Unassigned";
-  const consent = result.consentStatus || "consent missing";
-  const usageRights = result.usageRights || "rights unknown";
+  const consent = result.consentStatus || "missing";
+  const usageRights = result.usageRights || "unknown";
   const clearance = assetClearance(result);
 
   return (
@@ -51,7 +43,7 @@ export function PhotoCard({ onOpen, result }: PhotoCardProps) {
         />
       ) : (
         <div className="photo-thumb photo-thumb-preview">
-          <span>{result.sceneType}</span>
+          <span>No preview</span>
         </div>
       )}
 
@@ -74,15 +66,7 @@ export function PhotoCard({ onOpen, result }: PhotoCardProps) {
             <dt>Rights</dt>
             <dd>{labelize(usageRights)}</dd>
           </div>
-          <div>
-            <dt>People</dt>
-            <dd>{typeof result.peopleCount === "number" ? result.peopleCount : "Uncounted"}</dd>
-          </div>
         </dl>
-        <div className="photo-card-footer">
-          <span>{libraryLabel(result)}</span>
-          <span>{labelize(result.mood)}</span>
-        </div>
       </div>
     </button>
   );
