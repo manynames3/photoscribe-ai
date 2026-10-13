@@ -83,6 +83,7 @@ def test_search_handler_returns_enriched_results(monkeypatch) -> None:
                 "thumbnail_url": "https://signed.example/image.jpg",
                 "image_url": "https://signed.example/image.jpg",
                 "campaign": "",
+                "allowed_groups": [],
                 "consent_status": "missing",
                 "curator_tags": [],
                 "expiration_date": "",
@@ -357,6 +358,39 @@ def test_search_handler_returns_curated_tag_matches(monkeypatch) -> None:
     assert body["results"][0]["match_type"] == "curator_tag"
 
 
+def test_curator_search_paginates_empty_pages_and_respects_filters(monkeypatch) -> None:
+    cursor = {"asset_key": {"S": "page-1"}}
+    next_cursor = {"asset_key": {"S": "page-2"}}
+    def item(key: str, scene: str) -> dict[str, object]:
+        return {"asset_key": {"S": key}, "scene_type": {"S": scene}}
+    pages = [
+        {"Items": [], "LastEvaluatedKey": cursor},
+        {"Items": [item("portrait.jpg", "portrait")], "LastEvaluatedKey": next_cursor},
+        {"Items": [item("campus.jpg", "architectural"), item("extra.jpg", "architectural")]},
+    ]
+    requests: list[dict[str, object]] = []
+    class FakeDynamoDBClient:
+        def scan(self, **kwargs) -> dict[str, object]:
+            requests.append(kwargs)
+            return pages.pop(0)
+    monkeypatch.setattr(search_handler, "_dynamodb_client", lambda: FakeDynamoDBClient())
+    monkeypatch.setattr(search_handler, "ASSET_POLICY_TABLE_NAME", "asset-policy")
+    monkeypatch.setattr(search_handler, "AUDIT_LOG_TABLE_NAME", "")
+    monkeypatch.setattr(search_handler, "_authorize_asset", lambda *_args: (True, {}))
+    monkeypatch.setattr(search_handler, "_policy_item_to_result", lambda record, _policy: {
+        "key": record["asset_key"]["S"], "scene_type": record["scene_type"]["S"],
+    })
+    monkeypatch.setattr(search_handler, "embed_text", lambda _query: [0.1])
+    monkeypatch.setattr(search_handler, "query", lambda *_args, **_kwargs: [])
+    response = search_handler.handler({"queryStringParameters": {
+        "q": "release", "top_k": "1", "filter": dumps({"scene_type": "architectural"}),
+    }}, None)
+    assert loads(response["body"])["results"] == [{"key": "campus.jpg", "scene_type": "architectural"}]
+    assert len(requests) == 3
+    assert requests[1]["ExclusiveStartKey"] == cursor
+    assert requests[2]["ExclusiveStartKey"] == next_cursor
+
+
 def test_asset_tags_requires_curator_access(monkeypatch) -> None:
     monkeypatch.setattr(search_handler, "ASSET_POLICY_TABLE_NAME", "asset-policy")
     monkeypatch.setattr(search_handler, "UPLOAD_TOKEN_SHA256", sha256(b"secret").hexdigest())
@@ -461,6 +495,28 @@ def test_asset_policy_updates_review_metadata_for_reviewer(monkeypatch) -> None:
     assert body["groups"] == ["marketing", "compliance"]
     assert updated_items[0]["ExpressionAttributeValues"][":owner_department"] == {"S": "Marketing"}
     assert updated_items[0]["ExpressionAttributeValues"][":usage_rights"] == {"S": "public_release"}
+
+
+def test_policy_results_preserve_restricted_role_list() -> None:
+    metadata = search_handler._policy_metadata({"allowed_groups": {"S": "compliance,facilities"}})
+    assert metadata["allowed_groups"] == ["compliance", "facilities"]
+
+
+def test_asset_policy_rejects_approval_without_confirmed_rights(monkeypatch) -> None:
+    class NoWrites:
+        def update_item(self, **_kwargs) -> None:
+            raise AssertionError("Invalid approvals must not write policy metadata")
+
+    monkeypatch.setattr(search_handler, "ASSET_POLICY_TABLE_NAME", "asset-policy")
+    monkeypatch.setattr(search_handler, "_dynamodb_client", lambda: NoWrites())
+    for consent, rights, campaign in [("missing", "internal_only", ""), ("approved", "unknown", ""), ("approved", "", ""), ("approved", "campaign_limited", "")]:
+        response = search_handler.handler({
+            "routeKey": "POST /assets/policy",
+            "body": dumps({"key": "qa.jpg", "review_status": "approved", "consent_status": consent,
+                           "usage_rights": rights, "visibility": "library", "campaign": campaign}),
+            "requestContext": {"authorizer": {"jwt": {"claims": {"cognito:groups": "reviewer", "sub": "reviewer-qa"}}}},
+        }, None)
+        assert response["statusCode"] == 400
 
 
 def test_review_queue_requires_reviewer_and_returns_pending_assets(monkeypatch) -> None:

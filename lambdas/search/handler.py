@@ -459,6 +459,11 @@ def _handle_asset_policy(event: dict[str, Any]) -> dict[str, Any]:
         review_status = _policy_string(payload, "review_status", REVIEW_STATUSES)
         usage_rights = _policy_string(payload, "usage_rights", USAGE_RIGHTS)
         visibility = _policy_string(payload, "visibility", VISIBILITY_VALUES)
+        if review_status == "approved":
+            if consent_status not in {"approved", "not_required"} or usage_rights not in {"internal_only", "public_release", "campaign_limited"}:
+                raise ValueError("confirmed consent and usage rights are required before approval")
+            if usage_rights == "campaign_limited" and not campaign:
+                raise ValueError("campaign is required for campaign-limited usage rights")
     except (TypeError, ValueError) as error:
         return _response(400, {"error": str(error)})
 
@@ -695,6 +700,7 @@ def _policy_metadata(policy: dict[str, Any] | None) -> dict[str, Any]:
     if policy is None:
         return {
             "campaign": "",
+            "allowed_groups": [],
             "consent_status": "missing",
             "curator_tags": [],
             "expiration_date": "",
@@ -709,6 +715,7 @@ def _policy_metadata(policy: dict[str, Any] | None) -> dict[str, Any]:
 
     return {
         "campaign": _ddb_string(policy.get("campaign")),
+        "allowed_groups": _ddb_string_list(policy.get("allowed_groups")),
         "consent_status": _ddb_string(policy.get("consent_status"), "missing"),
         "curator_tags": _csv_metadata(_ddb_string(policy.get("curator_tags"))),
         "expiration_date": _ddb_string(policy.get("expiration_date")),
@@ -784,6 +791,7 @@ def enrich_with_signed_url(match: Match, policy_metadata: dict[str, Any] | None 
         "image_url": image_url,
         "s3_key": s3_key,
         "campaign": (policy_metadata or {}).get("campaign", ""),
+        "allowed_groups": (policy_metadata or {}).get("allowed_groups", []),
         "consent_status": (policy_metadata or {}).get("consent_status", "missing"),
         "curator_tags": (policy_metadata or {}).get("curator_tags", []),
         "expiration_date": (policy_metadata or {}).get("expiration_date", ""),
@@ -808,7 +816,8 @@ def _policy_item_to_result(item: dict[str, Any], policy_metadata: dict[str, Any]
         "seo_caption": description[:140],
         "mood": _ddb_string(item.get("mood"), "neutral"),
         "scene_type": _ddb_string(item.get("scene_type"), "other"),
-        "lighting": "other",
+        "lighting": _ddb_string(item.get("lighting"), "other"),
+        "time_of_day": _ddb_string(item.get("time_of_day"), "unknown"),
         "aspect_ratio": "landscape",
         "subjects": policy_metadata.get("curator_tags", []),
         "colors": [],
@@ -817,6 +826,7 @@ def _policy_item_to_result(item: dict[str, Any], policy_metadata: dict[str, Any]
         "image_url": image_url,
         "s3_key": asset_key,
         "campaign": policy_metadata.get("campaign", ""),
+        "allowed_groups": policy_metadata.get("allowed_groups", []),
         "consent_status": policy_metadata.get("consent_status", "missing"),
         "curator_tags": policy_metadata.get("curator_tags", []),
         "expiration_date": policy_metadata.get("expiration_date", ""),
@@ -835,7 +845,7 @@ def _policy_item_to_result(item: dict[str, Any], policy_metadata: dict[str, Any]
     return result
 
 
-def _curated_tag_matches(query_text: str, groups: set[str], limit: int) -> list[dict[str, Any]]:
+def _curated_tag_matches(query_text: str, groups: set[str], limit: int, filter_doc: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     if not ASSET_POLICY_TABLE_NAME:
         return []
 
@@ -843,25 +853,34 @@ def _curated_tag_matches(query_text: str, groups: set[str], limit: int) -> list[
     if not normalized_query:
         return []
 
-    response = _dynamodb_client().scan(
-        ExpressionAttributeValues={":query": {"S": normalized_query}},
-        FilterExpression="contains(curator_tags_lc, :query) OR contains(staff_names_lc, :query)",
-        Limit=limit,
-        TableName=ASSET_POLICY_TABLE_NAME,
-    )
-
+    client = _dynamodb_client()
+    scan_params: dict[str, Any] = {
+        "ExpressionAttributeValues": {":query": {"S": normalized_query}},
+        "FilterExpression": "contains(curator_tags_lc, :query) OR contains(staff_names_lc, :query)",
+        "Limit": max(100, limit),
+        "TableName": ASSET_POLICY_TABLE_NAME,
+    }
     results: list[dict[str, Any]] = []
-    for item in response.get("Items", []):
-        asset_key = _ddb_string(item.get("asset_key"))
-        if not asset_key:
-            continue
-
-        policy_metadata = _policy_metadata(item)
-        is_allowed, _authorized_metadata = _authorize_asset(asset_key, groups)
-        if is_allowed:
-            results.append(_policy_item_to_result(item, policy_metadata))
-
-    return results
+    while True:
+        response = client.scan(**scan_params)
+        for item in response.get("Items", []):
+            asset_key = _ddb_string(item.get("asset_key"))
+            if not asset_key:
+                continue
+            is_allowed, policy_metadata = _authorize_asset(asset_key, groups)
+            if not is_allowed:
+                continue
+            result = _policy_item_to_result(item, policy_metadata)
+            if any(result.get(field) != value for field, value in (filter_doc or {}).items()):
+                continue
+            results.append(result)
+            if len(results) >= limit:
+                return results
+        # Scan limits evaluated rows, not matches; even an empty page can have a cursor.
+        cursor = response.get("LastEvaluatedKey")
+        if not cursor:
+            return results
+        scan_params["ExclusiveStartKey"] = cursor
 
 
 def _audit_search(
@@ -928,7 +947,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     query_vector = embed_text(query_text)
     matches = query(query_vector, top_k=top_k, filter=filter_doc)
     groups = set(security_context["groups"])
-    results: list[dict[str, Any]] = _curated_tag_matches(query_text, groups, top_k)
+    results: list[dict[str, Any]] = _curated_tag_matches(query_text, groups, top_k, filter_doc=filter_doc)
     seen_keys = {str(result["key"]) for result in results}
     denied_count = 0
     for match in matches:
