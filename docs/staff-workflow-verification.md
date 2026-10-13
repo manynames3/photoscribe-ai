@@ -21,7 +21,8 @@ acceptance or a regulatory/security certification.
 | Saved-plan reconciliation after applies | No changes required |
 
 Local backend tests used Python 3.14.6; actual Lambda workflows exercised Python
-3.12. GitHub CI also targets Python 3.12. No separate lint script is configured;
+3.12. GitHub CI passed all 40 backend tests on Python 3.12 with 92.65% aggregate
+coverage. No separate lint script is configured;
 the production build performs TypeScript checking.
 
 ## Live Staff Tasks
@@ -59,6 +60,20 @@ sent. A separate email-suppressed account exercised the real first-password
 challenge. These checks do **not** establish email delivery to an intended staff
 member or completion of a buyer's real onboarding session.
 
+## Published Release
+
+The [published site](https://photoscribe-ai.pages.dev/) was checked after the
+release deployment completed. Signed-out private controls were absent. A real
+QA Cognito account signed in, searched for the QA tag, opened a named photo
+dialog with a loaded signed image, and signed out with private controls cleared.
+The public CareFrame heading and configured pilot contact link were also checked.
+
+- [Frontend tests, build, and deployment](https://github.com/manynames3/photoscribe-ai/actions/runs/38363662437): passed.
+- [Backend tests and coverage](https://github.com/manynames3/photoscribe-ai/actions/runs/38363662572): passed.
+- The earlier `c04c5a7` deployment failure was a test-fixture environment leak.
+  API tests now explicitly isolate mock sessions from deployment Cognito settings;
+  production authentication is unchanged. Subsequent deployments passed.
+
 ## Operational State
 
 - Ingest worker enabled with existing concurrency limits.
@@ -70,6 +85,15 @@ member or completion of a buyer's real onboarding session.
 - Public pilot contact configured through a GitHub variable, not a committed
   private environment file. The form prepares an email; it does not claim it sent one.
 
+## QA Cleanup
+
+After published-site verification, ownership-guarded cleanup removed the four
+disposable accounts, two S3 object versions (original and thumbnail), and the QA
+vector and policy record. Their absence was verified before the private QA
+credential file was removed. Only those accounts' browser credential keys were
+cleared from the public and two local preview origins. Existing users, assets,
+audit events, and unrelated browser state were preserved.
+
 ## Verification Limits
 
 - The browser's screenshot capture timed out. No mock screenshots or private
@@ -79,8 +103,5 @@ member or completion of a buyer's real onboarding session.
   buyer security/legal/retention decisions require customer-side acceptance.
 - Audit events use the configured TTL. They are not a customer-approved hospital
   retention or legal-hold policy.
-- Cleanup is scoped to the four disposable QA accounts and the new original,
-  thumbnail, vector, and policy record. Existing assets and audit events are not
-  removed. Final published-site verification and cleanup are recorded after release.
 
 See [end-user readiness](end-user-readiness.md) for the remaining buyer gates.
