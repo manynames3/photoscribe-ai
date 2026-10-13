@@ -7,6 +7,9 @@ describe("frontend API client", () => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+    // API fixtures use local tokens; SDK refresh has its own suite.
+    vi.stubEnv("VITE_COGNITO_CLIENT_ID", "");
+    vi.stubEnv("VITE_COGNITO_USER_POOL_ID", "");
 
     const storage = new Map<string, string>();
     const localStorageMock = {
