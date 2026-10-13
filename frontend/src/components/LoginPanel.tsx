@@ -58,22 +58,20 @@ export function LoginPanel({ authSession, onSignIn, onSignOut }: LoginPanelProps
 
   return (
     <section className="login-panel">
-      <div>
-        <p className="sidebar-label">Staff access</p>
-        <h2>Sign in to manage Briar photos</h2>
-        <p>
-          Use an invited staff account to upload photos, review permissions, and update searchable details. Public
-          self-signup is intentionally disabled for managed pilot workspaces.
-        </p>
+      <div className="login-panel-copy">
+        <p className="sidebar-label">Secure staff access</p>
+        <h2>Welcome back</h2>
+        <p>Use the account issued by your CareFrame administrator.</p>
       </div>
 
       <form className="login-form" onSubmit={handleSubmit}>
         <label>
-          <span>Email</span>
+          <span>Work email</span>
           <input
             autoComplete="email"
             onChange={(event) => setEmail(event.target.value)}
-            placeholder="admin@briar.example"
+            placeholder="name@briar.example"
+            required
             type="email"
             value={email}
           />
@@ -83,7 +81,8 @@ export function LoginPanel({ authSession, onSignIn, onSignOut }: LoginPanelProps
           <input
             autoComplete="current-password"
             onChange={(event) => setPassword(event.target.value)}
-            placeholder="Staff password"
+            placeholder="Enter your password"
+            required
             type="password"
             value={password}
           />
@@ -95,6 +94,7 @@ export function LoginPanel({ authSession, onSignIn, onSignOut }: LoginPanelProps
               autoComplete="new-password"
               onChange={(event) => setNewPassword(event.target.value)}
               placeholder="Set a permanent password"
+              required
               type="password"
               value={newPassword}
             />
@@ -104,7 +104,11 @@ export function LoginPanel({ authSession, onSignIn, onSignOut }: LoginPanelProps
           {isSubmitting ? "Signing in..." : requiresNewPassword ? "Set password and sign in" : "Sign in"}
         </button>
       </form>
-      {status ? <p className="curator-status">{status}</p> : null}
+      {status ? (
+        <p aria-live="polite" className="curator-status" role="status">
+          {status}
+        </p>
+      ) : null}
     </section>
   );
 }

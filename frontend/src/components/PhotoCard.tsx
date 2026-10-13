@@ -1,4 +1,5 @@
 import type { PhotoResult } from "../types";
+import { assetClearance } from "../assetClearance";
 
 type PhotoCardProps = {
   onOpen: (result: PhotoResult) => void;
@@ -22,7 +23,7 @@ function policyClass(value: string | undefined) {
     return " is-approved";
   }
 
-  if (value === "restricted" || value === "missing" || value === "expired") {
+  if (value === "risk" || value === "restricted" || value === "missing" || value === "expired") {
     return " is-risk";
   }
 
@@ -33,7 +34,7 @@ export function PhotoCard({ onOpen, result }: PhotoCardProps) {
   const department = result.ownerDepartment || "Unassigned";
   const consent = result.consentStatus || "consent missing";
   const usageRights = result.usageRights || "rights unknown";
-  const reviewStatus = result.reviewStatus || "pending";
+  const clearance = assetClearance(result);
 
   return (
     <button
@@ -56,7 +57,7 @@ export function PhotoCard({ onOpen, result }: PhotoCardProps) {
 
       <div className="photo-card-body">
         <div className="photo-card-meta">
-          <span className={`meta-pill${policyClass(reviewStatus)}`}>{labelize(reviewStatus)}</span>
+          <span className={`meta-pill${policyClass(clearance.tone)}`}>{clearance.label}</span>
           <span className="meta-subtle">{labelize(result.sceneType)}</span>
         </div>
         <p className="photo-description">{result.description}</p>

@@ -7,6 +7,7 @@ export type SearchFilters = Partial<{
 
 export type PhotoResult = {
   altText: string;
+  allowedGroups?: string[];
   aspectRatio?: string;
   campaign?: string;
   consentStatus?: string;

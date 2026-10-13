@@ -11,6 +11,26 @@ const AUTH_TOKEN_KEY = "photoscribe.authToken";
 const AUTH_EMAIL_KEY = "photoscribe.authEmail";
 const AUTH_GROUPS_KEY = "photoscribe.authGroups";
 let pendingNewPasswordUser: CognitoUser | null = null;
+let pendingSessionRefresh: Promise<string | null> | null = null;
+let sessionGeneration = 0;
+
+export function refreshAuthToken(): Promise<string | null> {
+  const { clientId, userPoolId } = cognitoConfig();
+  if (!clientId || !userPoolId) return Promise.resolve(window.localStorage.getItem(AUTH_TOKEN_KEY));
+  if (pendingSessionRefresh) return pendingSessionRefresh;
+  const user = userPool().getCurrentUser();
+  if (!user) return Promise.resolve(null);
+  const generation = sessionGeneration;
+  const refresh = new Promise<string | null>((resolve) => {
+    user.getSession((error: Error | null, session: CognitoUserSession | null) => {
+      resolve(generation === sessionGeneration && !error && session?.isValid() ? sessionFromCognito(session).idToken : null);
+    });
+  }).finally(() => {
+    if (pendingSessionRefresh === refresh) pendingSessionRefresh = null;
+  });
+  pendingSessionRefresh = refresh;
+  return refresh;
+}
 
 function cognitoConfig() {
   return {
@@ -93,6 +113,11 @@ export function currentAuthSession(): AuthSession | null {
 }
 
 export function signOut() {
+  sessionGeneration += 1;
+  pendingSessionRefresh = null;
+  const { clientId, userPoolId } = cognitoConfig();
+  if (clientId && userPoolId) userPool().getCurrentUser()?.signOut();
+  pendingNewPasswordUser = null;
   window.localStorage.removeItem(AUTH_TOKEN_KEY);
   window.localStorage.removeItem(AUTH_EMAIL_KEY);
   window.localStorage.removeItem(AUTH_GROUPS_KEY);

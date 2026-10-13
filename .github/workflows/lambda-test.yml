@@ -30,4 +30,4 @@ jobs:
       - name: Run Lambda tests
         env:
           PYTHONPATH: .
-        run: pytest lambdas -v --cov=lambdas --cov-report=term-missing
+        run: pytest lambdas -v --cov=lambdas --cov-report=term-missing --cov-fail-under=80

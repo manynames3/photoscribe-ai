@@ -1,6 +1,7 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
 import { updateAssetPolicy } from "../api";
+import { assetClearance } from "../assetClearance";
 import type { AuthSession, PhotoResult } from "../types";
 
 type PhotoModalProps = {
@@ -37,7 +38,7 @@ function approvalCopy(reviewStatus: string | undefined) {
     case "pending_review":
       return "Needs review";
     case "rejected":
-      return "Do not use externally";
+      return "Not approved for use";
     case "missing_policy":
       return "Review details needed";
     case "unmanaged":
@@ -58,45 +59,14 @@ function accessCopy(visibility: string | undefined) {
   }
 }
 
-function departmentFit(photo: PhotoResult) {
-  const haystack = `${photo.description} ${photo.seoCaption} ${photo.subjects?.join(" ") ?? ""}`.toLowerCase();
-
-  if (haystack.includes("headshot") || haystack.includes("portrait") || haystack.includes("employee")) {
-    return "Human Resources, Executive Office";
-  }
-
-  if (haystack.includes("facility") || haystack.includes("corridor") || haystack.includes("interior")) {
-    return "Facilities, Operations";
-  }
-
-  if (haystack.includes("patient") || haystack.includes("clinical") || photo.visibility === "restricted") {
-    return "Compliance, Clinical Communications";
-  }
-
-  if (photo.sceneType === "event" || haystack.includes("community")) {
-    return "Marketing, Community Relations";
-  }
-
-  return "Marketing, Communications";
-}
-
-function recommendedUse(photo: PhotoResult) {
-  if (photo.reviewStatus === "pending_review" || photo.visibility === "restricted") {
-    return "Internal review, campaign planning, or controlled departmental use.";
-  }
-
-  if (photo.reviewStatus === "approved") {
-    return "Approved for presentations, intranet, and department requests.";
-  }
-
-  return "Check review details before sharing outside your department.";
-}
 
 function reviewReadiness(photo: PhotoResult) {
   const missingItems = [
     !photo.ownerDepartment && "owner department",
-    (!photo.consentStatus || photo.consentStatus === "missing") && "consent status",
-    (!photo.usageRights || photo.usageRights === "unknown") && "usage rights",
+    (!photo.consentStatus || !["approved", "not_required"].includes(photo.consentStatus)) && "consent confirmation",
+    (!photo.usageRights || !["internal_only", "public_release", "campaign_limited"].includes(photo.usageRights)) && "usage rights",
+    photo.usageRights === "campaign_limited" && !photo.campaign?.trim() && "campaign",
+    photo.expirationDate && photo.expirationDate < new Date().toISOString().slice(0, 10) && "renewed authorization",
     photo.peopleCount && photo.peopleCount > 0 && !photo.staffNames?.length && "visible people or staff names",
   ].filter(Boolean);
 
@@ -123,12 +93,15 @@ function splitValues(value: string) {
 }
 
 export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, photo }: PhotoModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   const [activeDossierTab, setActiveDossierTab] = useState<DossierTab>("overview");
   const [campaign, setCampaign] = useState("");
   const [consentStatus, setConsentStatus] = useState("missing");
   const [curatorTags, setCuratorTags] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
-  const [groups, setGroups] = useState<string[]>(["admin", "reviewer"]);
+  const [groups, setGroups] = useState<string[]>([]);
   const [location, setLocation] = useState("");
   const [ownerDepartment, setOwnerDepartment] = useState("");
   const [reviewStatus, setReviewStatus] = useState("pending_review");
@@ -145,10 +118,24 @@ export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, ph
 
     function handleKeydown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        onClose();
+        closeRef.current();
+      }
+      if (event.key === "Tab") {
+        const controls = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
+        ) ?? []).filter((control) => control.getClientRects().length > 0);
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault(); last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault(); first?.focus();
+        }
       }
     }
 
+    const previousFocus = document.activeElement as HTMLElement | null;
+    dialogRef.current?.querySelector<HTMLButtonElement>(".modal-close")?.focus();
     const { overflow } = document.body.style;
     document.body.style.overflow = "hidden";
     window.addEventListener("keydown", handleKeydown);
@@ -156,8 +143,9 @@ export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, ph
     return () => {
       document.body.style.overflow = overflow;
       window.removeEventListener("keydown", handleKeydown);
+      previousFocus?.focus();
     };
-  }, [onClose, photo]);
+  }, [photo?.key]);
 
   useEffect(() => {
     if (!photo) {
@@ -165,6 +153,7 @@ export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, ph
     }
 
     setCampaign(photo.campaign ?? "");
+    setGroups(photo.allowedGroups ?? []);
     setConsentStatus(photo.consentStatus ?? "missing");
     setCuratorTags(joinValues(photo.curatorTags));
     setExpirationDate(photo.expirationDate ?? "");
@@ -176,7 +165,7 @@ export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, ph
     setVisibility(photo.visibility ?? "library");
     setActiveDossierTab("overview");
     setTagStatus("");
-  }, [photo]);
+  }, [photo?.key]);
 
   if (!photo) {
     return null;
@@ -191,6 +180,11 @@ export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, ph
 
     if (!authSession) {
       setTagStatus("Sign in before updating photo details.");
+      return;
+    }
+
+    if (reviewStatus === "approved" && (!["approved", "not_required"].includes(consentStatus) || !["internal_only", "public_release", "campaign_limited"].includes(usageRights) || (usageRights === "campaign_limited" && !campaign.trim()))) {
+      setTagStatus("Confirm consent and usage rights before approving this photo.");
       return;
     }
 
@@ -225,6 +219,7 @@ export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, ph
       setVisibility(result.visibility);
       const updatedPhoto = {
         ...photo,
+        allowedGroups: result.groups.length ? result.groups : photo.allowedGroups,
         campaign: result.campaign,
         consentStatus: result.consentStatus,
         curatorTags: result.curatorTags,
@@ -247,10 +242,12 @@ export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, ph
 
   function applyReviewPreset(preset: "approve" | "compliance" | "restrict") {
     if (preset === "approve") {
+      if (!["approved", "not_required"].includes(consentStatus) || !["internal_only", "public_release", "campaign_limited"].includes(usageRights) || (usageRights === "campaign_limited" && !campaign.trim())) {
+        setTagStatus("Confirm consent and usage rights before approving this photo.");
+        return;
+      }
       setReviewStatus("approved");
       setVisibility("library");
-      setConsentStatus((current) => (current === "missing" ? "approved" : current));
-      setUsageRights((current) => (current === "unknown" ? "internal_only" : current));
       setGroups(["admin", "reviewer", "marketing", "hr", "compliance", "facilities"]);
       return;
     }
@@ -273,6 +270,8 @@ export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, ph
   return (
     <div
       aria-modal="true"
+      aria-labelledby="photo-detail-title"
+      ref={dialogRef}
       className="modal-backdrop"
       onClick={(event) => {
         if (event.target === event.currentTarget) {
@@ -299,12 +298,12 @@ export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, ph
         <div className="modal-copy">
           <div className="dossier-header">
             <div className="photo-card-meta">
-              <span className="meta-pill">{approvalCopy(photo.reviewStatus)}</span>
+              <span className={`meta-pill is-${assetClearance(photo).tone}`}>{assetClearance(photo).label}</span>
               <span className="meta-subtle">{labelize(photo.sceneType)}</span>
               <span className="meta-subtle">{accessCopy(photo.visibility)}</span>
             </div>
 
-            <h3>{photo.seoCaption || photo.description}</h3>
+            <h3 id="photo-detail-title">{photo.seoCaption || photo.description}</h3>
             <p>{photo.description}</p>
           </div>
 
@@ -327,11 +326,11 @@ export function PhotoModal({ authSession, canCurate, onClose, onPhotoUpdated, ph
               <div className="use-guidance">
                 <div>
                   <span>Recommended use</span>
-                  <strong>{recommendedUse(photo)}</strong>
+                  <strong>{assetClearance(photo).reason}</strong>
                 </div>
                 <div>
-                  <span>Best-fit teams</span>
-                  <strong>{departmentFit(photo)}</strong>
+                  <span>Owner department</span>
+                  <strong>{photo.ownerDepartment || "Unassigned"}</strong>
                 </div>
                 <div>
                   <span>Review readiness</span>

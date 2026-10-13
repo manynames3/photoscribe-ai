@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from "react";
+import type { RefObject } from "react";
 
 type SearchBarProps = {
   disabled?: boolean;
@@ -15,43 +15,24 @@ export function SearchBar({
   searchInputRef,
   value,
 }: SearchBarProps) {
-  const submitTimeoutRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (submitTimeoutRef.current) {
-        window.clearTimeout(submitTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  function scheduleSubmit() {
-    if (submitTimeoutRef.current) {
-      window.clearTimeout(submitTimeoutRef.current);
-    }
-
-    submitTimeoutRef.current = window.setTimeout(() => onSubmit(value), 300);
-  }
-
   return (
     <form
       className="search-form"
+      aria-busy={disabled}
       onSubmit={(event) => {
         event.preventDefault();
-        scheduleSubmit();
+        onSubmit(value);
       }}
     >
       <div className="search-bar">
         <input
           aria-label="Search photos"
           className="search-input"
-          disabled={disabled}
           onChange={(event) => onChange(event.target.value)}
           placeholder="Search approved photos, people, locations, or events"
           ref={searchInputRef}
           value={value}
         />
-        <span className="keyboard-hint">Press / to focus</span>
         <button className="search-button" disabled={disabled} type="submit">
           {disabled ? "Searching..." : "Search"}
         </button>

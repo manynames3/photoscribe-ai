@@ -8,39 +8,40 @@
 [![IaC](https://img.shields.io/badge/IaC-Terraform-844FBA?logo=terraform&logoColor=white)](#deployment)
 [![Frontend](https://img.shields.io/badge/Frontend-React%20%2B%20TypeScript-3178C6?logo=react&logoColor=white)](#tech-stack)
 
-PhotoScribe AI is a serverless AI media asset platform for searching enterprise photo libraries by meaning instead of filenames. Uploaded images are stored privately in Amazon S3, described with Amazon Bedrock Nova Lite, embedded with Titan Text Embeddings, indexed in Amazon S3 Vectors, governed with DynamoDB asset policy/audit tables, and searched through a React + TypeScript UI deployed on Cloudflare Pages.
+PhotoScribe AI powers **CareFrame**, a private hospital media workspace for finding, reviewing, and reusing photos with clear consent and usage-rights context. Images stay in private Amazon S3 storage; Bedrock descriptions and embeddings support semantic search through S3 Vectors. Cognito, DynamoDB asset policies, and short-lived signed image links govern access.
 
-The product-facing UI is branded as **CareFrame**, a hospital media workspace for finding, reviewing, and reusing approved internal photos.
+The interface uses **Briar University Hospital**, a fictional organization. Public photographs are illustrative, not customer assets or endorsements.
 
 **Live preview:** [photoscribe-ai.pages.dev](https://photoscribe-ai.pages.dev/)
 
 ## TL;DR
 
-PhotoScribe AI is a production-style cloud portfolio project for enterprise media intelligence: a public product landing page explains the system, while the staff workspace at [`/app`](https://photoscribe-ai.pages.dev/app) lets authorized users search, upload, review, and govern private hospital media assets. The backend uses AWS serverless services: S3, Lambda, API Gateway, Cognito, Bedrock Nova Lite, Titan Embeddings, S3 Vectors, DynamoDB, SQS/DLQ, CloudWatch alarms, optional CloudWatch dashboard, Terraform, and GitHub Actions CI/CD. The project is designed to show real AWS architecture skill, infrastructure as code, secure auth/config handling, failure isolation, observability, and cost-aware AI/vector search design.
+The [public page](https://photoscribe-ai.pages.dev/) introduces the managed pilot. The [staff workspace](https://photoscribe-ai.pages.dev/app) opens at sign-in, with no private results or search controls exposed beforehand. Signed-in staff have focused Library and Upload views; reviewers get Review, and admins get Access for invitations. Consent, rights, expiry, and restricted visibility remain separate from the approval label.
 
-> Enterprise media intelligence for organizations that can't afford to lose assets in a folder.
+The deployment is a single-library managed pilot, not a certified hospital production service. See [readiness and buyer gates](docs/end-user-readiness.md), [C4 architecture](docs/c4.md), and [design decisions](docs/product-experience-review.md).
 
-PhotoScribe AI solves a real enterprise problem: thousands of photos sitting in shared drives with filenames like `IMG_4872.jpg`, undiscoverable, untagged, and unused. Marketing teams cannot find campaign photos, HR manually renames portraits, investor relations repeats photo shoots, and compliance teams cannot easily audit whether released images contain sensitive or identifiable content.
-
-## Preview Flow
+## Staff Workflow
 
 Use the public landing page to understand the product, then open [`/app`](https://photoscribe-ai.pages.dev/app) to enter the staff workspace. Search results, filters, signed image links, uploads, review queues, and admin actions stay behind staff sign-in. If the backend is not configured locally, signed-in preview sessions can use bundled sample results so the product workflow can still be reviewed without a live AWS stack.
 
 1. Sign in with an invited Cognito staff user.
 2. Search like a hospital staff request: `hospital executive headshot`, `community health event`, or `hospital facilities documentation`.
 3. Open a result and review the non-technical asset context: recommended use, owner department, consent, rights, campaign, staff names, and location.
-4. Use staff permissions to upload files, load the review queue, approve/restrict assets, and add searchable human metadata.
+4. Upload photos; exact duplicates are skipped, and new files enter review after background indexing.
+5. Review consent and rights, then approve, restrict, or reject. Editing an asset preserves its saved role permissions.
+6. Admins invite staff and assign roles. Account listing and revocation are not implemented in this interface.
+
+Workspace sections and submitted queries survive reloads through URL state. Selected uploads remain available across in-app navigation. Photo details support keyboard focus and scrollable review controls on smaller screens. Cognito refreshes sessions before private requests; rejected sessions return to sign-in.
 
 The public surface explains the product; the workspace behaves like a private staff tool. Upload and review tools require staff access because image ingest triggers real AWS processing cost.
 
 For a controlled buyer or hiring-manager walkthrough, use the [pilot runbook](docs/pilot-runbook.md).
 For the concrete staff-ready checklist, use [end-user readiness](docs/end-user-readiness.md).
+For actual deployed checks and their limits, see [staff workflow verification](docs/staff-workflow-verification.md).
 
-## Sellable MVP Direction
+## Pilot Scope
 
 The credible first commercial offer is a managed pilot for a hospital marketing or communications team, not a broad self-serve DAM replacement. The pilot scope is one private media library, one buyer workflow, and one measurable outcome: help staff find and reuse approved images faster while preserving consent, usage-rights, and review context.
-
-Suggested first offer: managed setup plus a monthly private workspace. Keep public preview access free, but make private uploads, staff invites, review workflow, and signed asset delivery paid or manually approved.
 
 The first paid version should remain a single-customer managed pilot. Multi-tenant account isolation, self-serve billing, and enterprise SSO are intentionally deferred until one buyer workflow is validated.
 
@@ -110,12 +111,12 @@ For the PhotoScribe sample asset workflow, the companion tool reduced multi-mega
 - **Burst protection and failure isolation:** S3 events flow through SQS with capped Lambda event-source concurrency and a dead-letter queue for failed ingest events.
 - **Cost-aware architecture:** S3 Vectors avoids always-on vector infrastructure for a low-volume portfolio workload.
 - **Infrastructure as code:** Terraform defines AWS storage, vector, compute, API, observability, and optional frontend hosting resources.
-- **CI/CD-ready frontend:** Every push runs frontend tests, builds the Vite app, and deploys to Cloudflare Pages using a GitHub Actions secret for Cloudflare deploy access.
+- **CI/CD-ready frontend:** Every push installs the lockfile, audits dependencies, runs frontend tests, builds the app, and deploys to Cloudflare Pages using a GitHub Actions secret.
 - **Public repo secret handling:** deploy credentials live in GitHub Actions secrets; only public values such as `VITE_API_URL` are exposed to the browser.
 
 ## Architecture
 
-Detailed architecture documentation lives in [docs/architecture.md](docs/architecture.md). The managed-pilot operating model is documented in [docs/pilot-runbook.md](docs/pilot-runbook.md). Security, observability, and operations docs live in [docs/security.md](docs/security.md), [docs/observability.md](docs/observability.md), and [docs/operations-runbook.md](docs/operations-runbook.md).
+Detailed architecture documentation lives in [docs/architecture.md](docs/architecture.md), with context, container, and component views in [docs/c4.md](docs/c4.md). The managed-pilot operating model is documented in [docs/pilot-runbook.md](docs/pilot-runbook.md). Security, observability, and operations docs live in [docs/security.md](docs/security.md), [docs/observability.md](docs/observability.md), and [docs/operations-runbook.md](docs/operations-runbook.md).
 
 High-level flow:
 
@@ -166,7 +167,7 @@ photoscribe-ai/
 
 Prerequisites:
 
-- Node.js 20+
+- Node.js 22 (matches CI)
 - Python 3.12+
 - Terraform 1.9+
 - AWS CLI configured for the target AWS account
@@ -188,7 +189,7 @@ Frontend environment variables:
 - `VITE_API_URL`: deployed API Gateway base URL; leave blank for local preview mode
 - `VITE_COGNITO_USER_POOL_ID`: Cognito User Pool ID for staff login; required only with auth-enabled backend
 - `VITE_COGNITO_CLIENT_ID`: Cognito app client ID for staff login; required only with auth-enabled backend
-- `VITE_CONTACT_EMAIL`: optional email used by request-access CTAs
+- `VITE_CONTACT_EMAIL`: optional pilot contact destination; without it the form prepares a copyable request summary and does not claim delivery
 
 Run Lambda tests:
 
@@ -210,7 +211,7 @@ The deployed app currently uses Cloudflare Pages for the frontend and AWS for th
 Frontend deployment:
 
 - GitHub Actions workflow: [.github/workflows/cloudflare-pages.yml](.github/workflows/cloudflare-pages.yml)
-- Build command: `npm ci && npm run build`
+- Quality/build sequence: `npm ci`, `npm audit --audit-level=moderate`, `npm test`, `npm run build`
 - Deploy command: `wrangler pages deploy frontend/dist`
 - Required GitHub variables: `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_PAGES_PROJECT_NAME`, `VITE_API_URL`, `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`
 - Optional GitHub variable: `VITE_CONTACT_EMAIL`
@@ -222,16 +223,19 @@ Backend deployment:
 ./scripts/bootstrap-remote-state.sh us-east-1
 cd terraform
 terraform init -backend-config=dev.backend.hcl
-terraform plan -var-file=envs/dev.tfvars -var-file=envs/dev.cloudflare.tfvars -var='alert_email=you@example.com'
-terraform apply
+terraform plan -var-file=envs/dev.tfvars -var-file=envs/dev.cloudflare.tfvars -var='alert_email=you@example.com' -out=release.tfplan
+# Review and acknowledge the concrete plan before applying.
+terraform apply release.tfplan
 ```
 
 `envs/dev.tfvars` keeps `alert_email` as a placeholder so a real contact address is not committed. Pass a real value with `-var='alert_email=...'` for local plans/applies, or configure the `TF_ALERT_EMAIL` GitHub secret for AWS-backed Terraform workflows.
 
-The development SQS ingest worker is disabled by default to avoid idle Lambda
-polling. Set `enable_sqs_worker = true` only for an intentional ingest session,
-apply the reviewed plan, and set it back to `false` afterward. Production keeps
-the worker enabled. See [the operations runbook](docs/operations-runbook.md#run-the-sqs-ingest-worker) for details.
+The base `envs/dev.tfvars` disables idle SQS polling. The deployed managed pilot
+uses `envs/dev.cloudflare.tfvars`, which keeps the worker **enabled** so staff
+uploads process automatically. Use both files when planning this deployment;
+do not switch off the pilot worker after a staff upload. The deployed override
+also allows the exact local preview origin `http://127.0.0.1:5175`, alongside the
+public site. See [the operations runbook](docs/operations-runbook.md#run-the-sqs-ingest-worker).
 
 Operational alert confirmation:
 
@@ -275,10 +279,17 @@ To seed photos after deploy:
 
 ## Testing
 
+Release verification on 2026-10-13: **23 frontend tests**, **40 backend tests**,
+**3 Terraform regression tests**, a clean dependency audit, and successful real
+Cognito/upload/ingest/review/invitation/role checks. The
+[verification record](docs/staff-workflow-verification.md) includes the tested
+viewports, operational state, and checks that are not claimed as complete.
+
 Automated checks available in the repo:
 
 - `npm run build` in `frontend/`
 - `npm test` in `frontend/`
+- `npm audit --audit-level=moderate` in `frontend/`
 - `PYTHONPATH=. pytest lambdas -v --cov=lambdas --cov-report=term-missing`
 - `./scripts/smoke-test.sh` against a deployed API with a Cognito token
 - `terraform fmt -check -recursive`

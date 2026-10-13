@@ -4,6 +4,10 @@ import { inviteAdminUser } from "../api";
 
 const ROLE_OPTIONS = ["admin", "reviewer", "marketing", "hr", "compliance", "facilities"];
 
+function roleLabel(role: string) {
+  return role === "hr" ? "HR" : `${role[0]?.toUpperCase() ?? ""}${role.slice(1)}`;
+}
+
 type AdminPanelProps = {
   canAdmin: boolean;
 };
@@ -49,9 +53,9 @@ export function AdminPanel({ canAdmin }: AdminPanelProps) {
   return (
     <section className="ops-panel">
       <div>
-        <p className="sidebar-label">Admin</p>
-        <h2>User access</h2>
-        <p>Invite Briar staff and choose what kind of photo work they can do.</p>
+        <p className="sidebar-label">New invitation</p>
+        <h2>Invite staff</h2>
+        <p>Choose one or more roles for this Briar staff member.</p>
       </div>
 
       <form className="login-form" onSubmit={handleSubmit}>
@@ -65,19 +69,15 @@ export function AdminPanel({ canAdmin }: AdminPanelProps) {
             value={email}
           />
         </label>
-        <div className="filter-pill-row">
+        <fieldset className="invite-role-options">
+          <legend>Staff roles</legend>
           {ROLE_OPTIONS.map((role) => (
-            <button
-              key={role}
-              aria-pressed={groups.includes(role)}
-              className={`filter-pill${groups.includes(role) ? " is-active" : ""}`}
-              onClick={() => toggleGroup(role)}
-              type="button"
-            >
-              {role}
-            </button>
+            <label key={role}>
+              <input type="checkbox" checked={groups.includes(role)} onChange={() => toggleGroup(role)} />
+              <span>{roleLabel(role)}</span>
+            </label>
           ))}
-        </div>
+        </fieldset>
         <button className="search-button" disabled={isSubmitting || !groups.length || !email.trim()} type="submit">
           {isSubmitting ? "Inviting..." : "Invite user"}
         </button>

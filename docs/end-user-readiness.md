@@ -2,6 +2,11 @@
 
 CareFrame is intended to be usable by invited staff in a controlled managed pilot after the checks below pass against a deployed backend. It is not a claim of production hospital compliance, HIPAA compliance, or BAA readiness.
 
+The [2026-10-13 verification record](staff-workflow-verification.md) documents
+successful live functional checks with isolated accounts and non-sensitive
+imagery. A customer's real invitation delivery, staff acceptance, and the
+security/legal gates below are not established by those tests.
+
 ## Ready For A Managed Pilot When
 
 - `/app` shows no search field, filters, result cards, signed image links, upload controls, review queue, or admin actions while signed out.

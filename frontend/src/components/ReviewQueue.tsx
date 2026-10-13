@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { getReviewQueue } from "../api";
 import type { PhotoResult } from "../types";
@@ -6,6 +6,7 @@ import type { PhotoResult } from "../types";
 type ReviewQueueProps = {
   canReview: boolean;
   onOpen: (photo: PhotoResult) => void;
+  revision?: number;
 };
 
 function reviewReason(item: PhotoResult) {
@@ -24,19 +25,15 @@ function reviewReason(item: PhotoResult) {
   return "Review required";
 }
 
-export function ReviewQueue({ canReview, onOpen }: ReviewQueueProps) {
+export function ReviewQueue({ canReview, onOpen, revision = 0 }: ReviewQueueProps) {
   const [items, setItems] = useState<PhotoResult[]>([]);
-  const [status, setStatus] = useState("Load newly uploaded photos that need review before staff use them.");
+  const [status, setStatus] = useState("Loading review queue...");
   const [hasLoaded, setHasLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  if (!canReview) {
-    return null;
-  }
-
-  async function loadQueue() {
+  const loadQueue = useCallback(async () => {
     setIsLoading(true);
-    setStatus("");
+    setStatus("Loading review queue...");
 
     try {
       const results = await getReviewQueue();
@@ -48,6 +45,18 @@ export function ReviewQueue({ canReview, onOpen }: ReviewQueueProps) {
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    if (!canReview) {
+      return;
+    }
+
+    void loadQueue();
+  }, [canReview, loadQueue, revision]);
+
+  if (!canReview) {
+    return null;
   }
 
   return (
@@ -56,10 +65,10 @@ export function ReviewQueue({ canReview, onOpen }: ReviewQueueProps) {
         <div>
           <p className="sidebar-label">Review queue</p>
           <h2>Photos waiting for review</h2>
-          <p>{status}</p>
+          <p role="status" aria-live="polite">{status}</p>
         </div>
         <button className="clear-filters" disabled={isLoading} onClick={() => void loadQueue()} type="button">
-          {isLoading ? "Loading..." : "Load queue"}
+          {isLoading ? "Loading..." : "Refresh"}
         </button>
       </div>
 

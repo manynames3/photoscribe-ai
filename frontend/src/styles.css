@@ -1375,6 +1375,7 @@ img {
   display: grid;
   gap: 0;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 0.85fr);
+  grid-template-rows: minmax(0, 1fr);
   max-height: min(88vh, 920px);
   max-width: 1180px;
   overflow: hidden;
@@ -1426,6 +1427,7 @@ img {
 }
 
 .modal-copy {
+  min-height: 0;
   overflow: auto;
   padding: 24px;
 }
@@ -1744,6 +1746,7 @@ img {
 
   .modal-panel {
     grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .modal-media {

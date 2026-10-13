@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { uploadPhoto } from "../api";
 import type { UploadQueueItem } from "../types";
@@ -67,11 +67,22 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
   const [items, setItems] = useState<UploadQueueItem[]>([]);
   const [notice, setNotice] = useState("");
 
+  useEffect(() => {
+    if (!isUploading) return;
+    const warnOnUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnOnUnload);
+    return () => window.removeEventListener("beforeunload", warnOnUnload);
+  }, [isUploading]);
+
   function updateItem(id: string, patch: Partial<UploadQueueItem>) {
     setItems((currentItems) => currentItems.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   }
 
   function handleFiles(fileList: FileList | File[]) {
+    if (isUploading) return;
     const incomingFiles = Array.from(fileList);
     const files = incomingFiles.filter(isAcceptedImage);
 
@@ -174,11 +185,10 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
   return (
     <section className="upload-panel">
       <div className="upload-copy">
-        <p className="sidebar-label">Upload</p>
-        <h2>Add hospital photos</h2>
+        <p className="sidebar-label">New upload</p>
+        <h2>Add files</h2>
         <p>
-          Drag in approved JPEG, PNG, or WebP files. CareFrame checks for exact duplicates,
-          then prepares each new photo so staff can find it by search.
+          JPEG, PNG, and WebP files are checked for exact duplicates before they enter the review workflow.
         </p>
       </div>
 
@@ -204,6 +214,7 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
         <input
           accept="image/jpeg,image/png,image/webp"
           className="upload-input"
+          disabled={isUploading}
           multiple
           onChange={(event) => {
             if (event.target.files) {
@@ -213,16 +224,11 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
           ref={inputRef}
           type="file"
         />
-        <button className="upload-choose" onClick={() => inputRef.current?.click()} type="button">
+        <button className="upload-choose" disabled={isUploading} onClick={() => inputRef.current?.click()} type="button">
           Choose images
         </button>
-        <span>or drop files here</span>
+        <span>or drop JPEG, PNG, or WebP files here</span>
       </div>
-
-      <label className="upload-token">
-        <span>Access</span>
-        <input disabled value="Signed-in staff only" />
-      </label>
 
       {notice ? <p className="upload-notice">{notice}</p> : null}
 

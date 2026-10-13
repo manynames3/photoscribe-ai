@@ -85,7 +85,7 @@ describe("frontend API client", () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
 
     expect(url).toBe("https://api.example.test/search?q=doctor");
-    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer jwt-token");
+    expect(new Headers(init.headers).get("Authorization")).toBe("Bearer jwt-token");
     expect(response.mode).toBe("api");
     expect(response.results[0]).toMatchObject({
       key: "uploads/doctor.jpg",

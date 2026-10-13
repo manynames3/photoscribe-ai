@@ -49,10 +49,12 @@ Checks:
 The queue consumer is an AWS Lambda event-source mapping, not an application
 polling loop. Lambda owns the `ReceiveMessage` calls and idle polling, so sleep
 or jitter inside the handler cannot reduce empty receives. Terraform sets
-20-second long polling on the source queue and DLQ, and keeps the mapping
-disabled by default in `dev`, `development`, and `local` environments.
+20-second long polling on the source queue and DLQ. Idle base development
+configuration disables the mapping; the deployed managed-pilot override in
+`envs/dev.cloudflare.tfvars` keeps it enabled for automatic staff uploads.
 
-Enable the development worker only while exercising photo ingest:
+For an idle development stack, enable the worker only while exercising ingest.
+For the deployed pilot, keep it enabled and use both deployment variable files:
 
 ```bash
 terraform -chdir=terraform plan \
@@ -64,8 +66,9 @@ terraform -chdir=terraform apply plan.tfplan
 terraform -chdir=terraform output -raw sqs_worker_enabled
 ```
 
-After the ingest session, repeat the reviewed plan and apply with
-`enable_sqs_worker=false`. Messages remain in the source queue for four days
+After an idle development ingest session, it can be disabled with another
+acknowledged plan. **Do not disable the deployed pilot worker after testing:**
+staff uploads would stop processing. Messages remain in the source queue for four days
 while the mapping is disabled. Successful batch-size-one invocations delete
 their message; failures are retried and eventually sent to the existing DLQ.
 

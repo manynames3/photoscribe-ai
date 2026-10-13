@@ -4,6 +4,9 @@ PhotoScribe AI is a serverless semantic media search system for governed image l
 
 ## Container Diagram
 
+See [C4 context, container, and component views](c4.md) for the audience, trust
+boundaries, and staff application responsibilities.
+
 ```mermaid
 flowchart TB
     person["Person<br/>Searches photo library"]

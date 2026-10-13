@@ -13,6 +13,9 @@ This directory records the main architecture choices behind PhotoScribe AI.
 - [ADR 0007: Use content-addressed browser uploads](0007-content-addressed-uploads.md)
 - [ADR 0008: Add low-cost operational guardrails](0008-low-cost-operational-guardrails.md)
 - [ADR 0009: Generate private thumbnails during ingest](0009-ingest-generated-thumbnails.md)
+- [ADR 0010: Preserve staff task state and asset permissions](0010-role-aware-staff-workspace.md)
+- [ADR 0011: Keep the managed pilot operational and verify releases](0011-verified-managed-pilot-releases.md)
+- [ADR 0012: Complete curated search before applying its result limit](0012-paginate-curated-search.md)
 
 ## Format
 

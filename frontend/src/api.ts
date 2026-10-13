@@ -1,3 +1,4 @@
+import { refreshAuthToken } from "./auth";
 import type {
   AdminUserInvite,
   AssetPolicyUpdate,
@@ -12,9 +13,11 @@ const PREVIEW_RESULTS: PhotoResult[] = [
   {
     id: "preview-executive-headshot",
     key: "preview-executive-headshot",
+    thumbnailUrl: "/media/portrait.jpg",
+    imageUrl: "/media/portrait.jpg",
     description:
       "Approved Briar University Hospital executive headshot for leadership announcements, board materials, and press requests.",
-    altText: "Briar University Hospital executive headshot approved for communications use.",
+    altText: "Illustrative portrait of a clinician with glasses and a stethoscope.",
     seoCaption: "Briar University Hospital executive headshot for leadership communications.",
     campaign: "Leadership communications",
     consentStatus: "approved",
@@ -36,10 +39,12 @@ const PREVIEW_RESULTS: PhotoResult[] = [
   {
     id: "preview-leadership-briefing",
     key: "preview-leadership-briefing",
+    thumbnailUrl: "/media/team.jpg",
+    imageUrl: "/media/team.jpg",
     description:
-      "Briar University Hospital executives review community impact materials around a conference table with secure laptops, printed reports, and clean administrative lighting.",
-    altText: "Briar University Hospital leadership team reviewing community impact materials.",
-    seoCaption: "Briar University Hospital leadership planning session for internal communications.",
+      "Illustrative hospital campaign photo: a clinician discusses care with a visitor. Sample policy details demonstrate internal communications review.",
+    altText: "Illustrative clinician discussing care with a visitor.",
+    seoCaption: "Clinical conversation for internal communications.",
     campaign: "Community impact report",
     consentStatus: "approved",
     curatorTags: ["campaign assets", "annual report", "leadership"],
@@ -50,7 +55,7 @@ const PREVIEW_RESULTS: PhotoResult[] = [
     sceneType: "event",
     lighting: "studio",
     timeOfDay: "morning",
-    peopleCount: 6,
+    peopleCount: 2,
     source: "preview",
     staffNames: [],
     subjects: ["executives", "reports", "conference room", "approved campaign assets"],
@@ -60,10 +65,12 @@ const PREVIEW_RESULTS: PhotoResult[] = [
   {
     id: "preview-clinic",
     key: "preview-clinic",
+    thumbnailUrl: "/media/team.jpg",
+    imageUrl: "/media/team.jpg",
     description:
-      "A doctor uses a tablet in a bright Briar University Hospital hallway while medical staff coordinate patient care in the background.",
-    altText: "Doctor using a tablet in a Briar University Hospital hallway.",
-    seoCaption: "Clinician using a tablet in a Briar University Hospital operations corridor.",
+      "A doctor discusses care with a visitor. Illustrative clinical communications image with restricted sample policy.",
+    altText: "Illustrative doctor and visitor in a consultation room.",
+    seoCaption: "Clinical consultation with restricted sample access.",
     campaign: "Clinical operations",
     consentStatus: "restricted",
     curatorTags: ["doctor", "tablet", "clinical staff"],
@@ -84,9 +91,11 @@ const PREVIEW_RESULTS: PhotoResult[] = [
   {
     id: "preview-facilities-rounds",
     key: "preview-facilities-rounds",
+    thumbnailUrl: "/media/corridor.jpg",
+    imageUrl: "/media/corridor.jpg",
     description:
-      "Facilities and safety staff inspect a clearly marked Briar University Hospital corridor with equipment carts, wayfinding signage, and compliance documentation.",
-    altText: "Briar University Hospital facilities team inspecting a clinical corridor.",
+      "An empty hospital corridor with clear wayfinding and room entrances. Illustrative facilities documentation awaiting sample compliance review.",
+    altText: "Illustrative empty hospital corridor.",
     seoCaption: "Briar University Hospital facilities inspection image for operations documentation.",
     campaign: "Facilities documentation",
     consentStatus: "not_required",
@@ -98,7 +107,7 @@ const PREVIEW_RESULTS: PhotoResult[] = [
     sceneType: "documentary",
     lighting: "mixed",
     timeOfDay: "midday",
-    peopleCount: 2,
+    peopleCount: 0,
     source: "preview",
     staffNames: [],
     subjects: ["facilities", "safety", "clinical corridor"],
@@ -108,10 +117,12 @@ const PREVIEW_RESULTS: PhotoResult[] = [
   {
     id: "preview-community-event",
     key: "preview-community-event",
+    thumbnailUrl: "/media/campus.jpg",
+    imageUrl: "/media/campus.jpg",
     description:
-      "Medical staff and volunteers welcome families at an outdoor community health event with branded tables, soft daylight, and approachable patient education materials.",
-    altText: "Briar University Hospital staff welcoming families at a community health event.",
-    seoCaption: "Community health outreach event for hospital marketing.",
+      "Illustrative hospital campus exterior for approved campaign assets and community health communications.",
+    altText: "Illustrative modern hospital exterior with glass facade.",
+    seoCaption: "Hospital campus for community communications.",
     campaign: "Community health outreach",
     consentStatus: "approved",
     curatorTags: ["community health event", "approved campaign assets", "outreach"],
@@ -119,10 +130,10 @@ const PREVIEW_RESULTS: PhotoResult[] = [
     mood: "energetic",
     ownerDepartment: "Marketing",
     reviewStatus: "approved",
-    sceneType: "event",
+    sceneType: "architectural",
     lighting: "studio",
     timeOfDay: "unknown",
-    peopleCount: 8,
+    peopleCount: 0,
     source: "preview",
     staffNames: [],
     subjects: ["community outreach", "families", "patient education"],
@@ -134,6 +145,7 @@ const PREVIEW_RESULTS: PhotoResult[] = [
 const PREVIEW_STOP_WORDS = new Set(["a", "an", "and", "for", "in", "of", "or", "the", "to", "with"]);
 
 type ApiPhotoResult = Partial<{
+  allowed_groups: string[];
   aspect_ratio: string;
   campaign: string;
   colors: string[];
@@ -280,6 +292,7 @@ function normalizeApiResults(results: unknown[]): PhotoResult[] {
       key: item.key ?? `api-${index + 1}`,
       description: item.description ?? "No description returned.",
       altText: item.alt_text ?? "Search result image.",
+      allowedGroups: item.allowed_groups,
       seoCaption: item.seo_caption ?? "",
       aspectRatio: item.aspect_ratio,
       campaign: item.campaign,
@@ -444,7 +457,7 @@ export async function updateAssetTags(
 export async function getReviewQueue(): Promise<PhotoResult[]> {
   const baseUrl = apiBaseUrl();
   if (!baseUrl) {
-    return [];
+    return PREVIEW_RESULTS.filter((photo) => photo.reviewStatus === "pending_review");
   }
 
   const response = await apiFetch("review", `${baseUrl}/assets/review`, {
@@ -578,8 +591,19 @@ function networkApiError(action: ApiAction) {
 }
 
 async function apiFetch(action: ApiAction, input: RequestInfo | URL, init?: RequestInit) {
+  const headers = new Headers(init?.headers);
+  if (headers.has("Authorization")) {
+    const token = await refreshAuthToken();
+    if (!token) {
+      window.dispatchEvent(new Event("photoscribe:session-expired"));
+      throw new Error("Your staff session expired. Sign in again and retry.");
+    }
+    headers.set("Authorization", `Bearer ${token}`);
+  }
   try {
-    return await fetch(input, init);
+    const response = await fetch(input, { ...init, headers });
+    if (response.status === 401) window.dispatchEvent(new Event("photoscribe:session-expired"));
+    return response;
   } catch {
     throw new Error(networkApiError(action));
   }
