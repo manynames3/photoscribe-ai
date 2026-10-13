@@ -94,11 +94,22 @@ credential file was removed. Only those accounts' browser credential keys were
 cleared from the public and two local preview origins. Existing users, assets,
 audit events, and unrelated browser state were preserved.
 
+## Screenshots
+
+Screenshot capture succeeded on retry on 2026-10-13. These are inspected captures
+of the published site, not mockups. They show only public or signed-out screens;
+private staff media is not included.
+
+- [Desktop landing page](screenshots/landing-desktop.png): 1440x900.
+- [Mobile landing page](screenshots/landing-mobile.png): 390x844.
+- [Staff sign-in](screenshots/staff-sign-in.png): 1920x944; search and media stay hidden.
+
+![Published CareFrame desktop landing page](screenshots/landing-desktop.png)
+
 ## Verification Limits
 
-- The browser's screenshot capture timed out. No mock screenshots or private
-  library images are published as evidence; interaction/DOM checks remain recorded
-  above. A visual acceptance pass by intended staff is still valuable.
+- Signed-in interaction checks are recorded above, without published private
+  library screenshots. Intended staff visual acceptance is still required.
 - Actual invitation delivery, MFA/SSO policy, account revocation procedures, and
   buyer security/legal/retention decisions require customer-side acceptance.
 - Audit events use the configured TTL. They are not a customer-approved hospital

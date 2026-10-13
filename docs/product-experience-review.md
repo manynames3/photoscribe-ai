@@ -34,8 +34,10 @@ The [staff verification record](staff-workflow-verification.md) covers real
 Cognito sign-in, first-password setup, refresh/rejection recovery, private
 upload, automatic ingest, duplicate feedback, approval, invitations, saved
 roles, restricted access, and desktop/mobile interaction. Automated checks now
-include 23 frontend and 40 backend tests. Browser screenshot capture timed out;
-no synthetic UI screenshots are substituted for rendered evidence.
+include 23 frontend and 40 backend tests. Screenshot capture initially timed out
+but succeeded on retry; inspected public desktop/mobile and signed-out staff
+captures are linked in the verification record. Private library media is not
+published.
 
 ## Judgment Calls
 
