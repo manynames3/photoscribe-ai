@@ -131,7 +131,7 @@ class PhotoMetadata(BaseModel):
         "other",
     ]
     time_of_day: Literal["morning", "midday", "afternoon", "evening", "sunset", "night", "unknown"]
-    people_count: int = Field(..., ge=0, le=50)
+    people_count: int = Field(..., ge=0)
     aspect_ratio: Literal["portrait", "landscape", "square", "panoramic"]
 
     @field_validator("aspect_ratio", "lighting", "mood", "scene_type", "time_of_day", mode="before")
@@ -148,16 +148,23 @@ class PhotoMetadata(BaseModel):
 
 
 def parse_photo_metadata(raw_text: str) -> PhotoMetadata:
-    """Parse model JSON and raise with the raw text preserved on failure."""
+    """Parse model JSON without retaining the raw response in errors."""
     try:
         payload = json.loads(raw_text)
-    except json.JSONDecodeError as error:
-        raise ValueError(f"image model returned invalid JSON: {raw_text}") from error
+    except json.JSONDecodeError:
+        raise ValueError("image model returned invalid JSON") from None
 
     try:
         return PhotoMetadata.model_validate(payload)
     except ValidationError as error:
-        raise ValueError(f"image model returned invalid schema payload: {raw_text}") from error
+        invalid_fields = sorted(
+            {
+                ".".join(str(part) for part in item["loc"])
+                for item in error.errors(include_input=False, include_context=False, include_url=False)
+            }
+        )
+        fields = ", ".join(invalid_fields) or "unknown fields"
+        raise ValueError(f"image model returned invalid schema for fields: {fields}") from None
 
 
 def split_metadata(metadata: PhotoMetadata, *, s3_key: str, bucket: str) -> tuple[dict[str, object], dict[str, object]]:

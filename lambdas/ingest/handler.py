@@ -93,7 +93,7 @@ def store_thumbnail(bucket: str, key: str, image_bytes: bytes) -> str | None:
     try:
         thumbnail_bytes = create_thumbnail(image_bytes)
     except Exception as error:  # pragma: no cover - corrupt images should fail soft here.
-        _log({"message": "thumbnail generation failed", "bucket": bucket, "key": key, "error": str(error)})
+        _log({"message": "thumbnail generation failed", "error_type": type(error).__name__})
         return None
 
     thumbnail_key = thumbnail_key_for_asset(key)
@@ -221,7 +221,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 }
             )
         except Exception as error:
-            _log({"message": "ingest failed", "bucket": bucket, "key": key, "error": str(error)})
+            _log({"message": "ingest failed", "error_type": type(error).__name__})
             raise
 
     return {

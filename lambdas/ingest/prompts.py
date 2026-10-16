@@ -19,7 +19,7 @@ fields and no others:
   "objects_detected": ["up to 15 notable objects"],
   "lighting": "ONE of: golden_hour, overcast, studio, harsh_sun, soft_diffused, low_light, mixed, backlit, other",
   "time_of_day": "ONE of: morning, midday, afternoon, sunset, night, unknown",
-  "people_count": <integer 0-50, your best estimate of people visible>,
+  "people_count": <non-negative integer estimate of people visible>,
   "aspect_ratio": "ONE of: portrait, landscape, square, panoramic"
 }
 

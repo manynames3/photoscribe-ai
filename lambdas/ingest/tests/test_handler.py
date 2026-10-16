@@ -4,6 +4,7 @@ import json
 import logging
 from io import BytesIO
 
+import pytest
 from moto import mock_aws
 
 import boto3
@@ -91,6 +92,27 @@ def test_ingest_handler_skips_unsupported_media_type(monkeypatch) -> None:
 
     assert response["statusCode"] == 200
     assert json.loads(response["body"])["records"] == 1
+
+
+def test_ingest_failure_log_omits_object_key_and_exception_message(monkeypatch, caplog) -> None:
+    def fail_download(_bucket: str, _key: str) -> tuple[bytes, str]:
+        raise RuntimeError("PRIVATE_MODEL_RESPONSE")
+
+    monkeypatch.setattr("lambdas.ingest.handler.download_image", fail_download)
+    event = {
+        "source": "aws.s3",
+        "detail-type": "Object Created",
+        "detail": {"bucket": {"name": "photos"}, "object": {"key": "private/person-name.jpg"}},
+    }
+
+    with caplog.at_level(logging.INFO), pytest.raises(RuntimeError, match="PRIVATE_MODEL_RESPONSE"):
+        handler(event, None)
+
+    log_entries = [json.loads(record.message) for record in caplog.records if record.message.startswith("{")]
+    failure_log = next(entry for entry in log_entries if entry["message"] == "ingest failed")
+    assert failure_log == {"message": "ingest failed", "error_type": "RuntimeError"}
+    assert "PRIVATE_MODEL_RESPONSE" not in caplog.text
+    assert "private/person-name.jpg" not in caplog.text
 
 
 def test_ingest_handler_extracts_eventbridge_event_from_sqs(monkeypatch) -> None:

@@ -21,8 +21,34 @@ def test_parse_photo_metadata_validates_fixture() -> None:
 
 
 def test_parse_photo_metadata_rejects_invalid_json() -> None:
-    with pytest.raises(ValueError):
-        parse_photo_metadata("not json")
+    raw_response = "PRIVATE_MODEL_RESPONSE: not json"
+
+    with pytest.raises(ValueError, match="invalid JSON") as error:
+        parse_photo_metadata(raw_response)
+
+    assert raw_response not in str(error.value)
+    assert error.value.__suppress_context__
+
+
+def test_parse_photo_metadata_accepts_people_count_above_50() -> None:
+    payload = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    payload["people_count"] = 100
+
+    metadata = parse_photo_metadata(json.dumps(payload))
+
+    assert metadata.people_count == 100
+
+
+def test_parse_photo_metadata_does_not_echo_invalid_payload() -> None:
+    payload = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    payload["description"] = "PRIVATE_MODEL_RESPONSE with enough detail for this field."
+    payload["people_count"] = -1
+
+    with pytest.raises(ValueError, match="people_count") as error:
+        parse_photo_metadata(json.dumps(payload))
+
+    assert "PRIVATE_MODEL_RESPONSE" not in str(error.value)
+    assert error.value.__suppress_context__
 
 
 def test_parse_photo_metadata_normalizes_model_enum_drift() -> None:
