@@ -44,10 +44,15 @@ def test_download_image_reads_s3_object() -> None:
 
 
 @mock_aws
-def test_ingest_handler_indexes_eventbridge_event(monkeypatch) -> None:
+def test_ingest_handler_indexes_eventbridge_event_without_logging_asset_identifiers(monkeypatch, caplog) -> None:
     s3 = boto3.client("s3", region_name="us-east-1")
-    s3.create_bucket(Bucket="photos")
-    s3.put_object(Bucket="photos", Key="image.jpg", Body=b"data", ContentType="image/jpeg")
+    s3.create_bucket(Bucket="private-bucket-name")
+    s3.put_object(
+        Bucket="private-bucket-name",
+        Key="private/person-name.jpg",
+        Body=b"data",
+        ContentType="image/jpeg",
+    )
 
     captured: dict[str, object] = {}
     monkeypatch.setattr("lambdas.ingest.handler.describe_image", lambda *_args: _sample_metadata())
@@ -61,37 +66,45 @@ def test_ingest_handler_indexes_eventbridge_event(monkeypatch) -> None:
 
     monkeypatch.setattr("lambdas.ingest.handler.put_vector", fake_put_vector)
 
-    response = handler(
-        {
-            "source": "aws.s3",
-            "detail-type": "Object Created",
-            "detail": {"bucket": {"name": "photos"}, "object": {"key": "image.jpg"}},
-        },
-        None,
-    )
+    with caplog.at_level(logging.INFO):
+        response = handler(
+            {
+                "source": "aws.s3",
+                "detail-type": "Object Created",
+                "detail": {
+                    "bucket": {"name": "private-bucket-name"},
+                    "object": {"key": "private/person-name.jpg"},
+                },
+            },
+            None,
+        )
 
     assert response["statusCode"] == 200
     assert json.loads(response["body"])["records"] == 1
-    assert captured["key"] == "image.jpg"
+    assert captured["key"] == "private/person-name.jpg"
     assert captured["vector"] == [0.1, 0.2, 0.3]
     assert captured["filterable"] is not None
     assert captured["non_filterable"] is not None
+    assert "private/person-name.jpg" not in caplog.text
+    assert "private-bucket-name" not in caplog.text
 
 
-def test_ingest_handler_skips_unsupported_media_type(monkeypatch) -> None:
+def test_ingest_handler_skips_unsupported_media_type_without_logging_object_key(monkeypatch, caplog) -> None:
     monkeypatch.setattr("lambdas.ingest.handler.download_image", lambda *_args: (b"content", "image/heic"))
 
-    response = handler(
-        {
-            "source": "aws.s3",
-            "detail-type": "Object Created",
-            "detail": {"bucket": {"name": "photos"}, "object": {"key": "image.heic"}},
-        },
-        None,
-    )
+    with caplog.at_level(logging.INFO):
+        response = handler(
+            {
+                "source": "aws.s3",
+                "detail-type": "Object Created",
+                "detail": {"bucket": {"name": "photos"}, "object": {"key": "private/person-name.heic"}},
+            },
+            None,
+        )
 
     assert response["statusCode"] == 200
     assert json.loads(response["body"])["records"] == 1
+    assert "private/person-name.heic" not in caplog.text
 
 
 def test_ingest_failure_log_omits_object_key_and_exception_message(monkeypatch, caplog) -> None:

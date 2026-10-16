@@ -193,12 +193,12 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
 
         try:
             if is_thumbnail_key(key):
-                _log({"message": "skipped generated thumbnail", "bucket": bucket, "key": key})
+                _log({"message": "skipped generated thumbnail"})
                 continue
 
             image_bytes, media_type = download_image(bucket, key)
             if media_type not in ALLOWED_MEDIA_TYPES:
-                _log({"message": "skipped unsupported media type", "key": key, "media_type": media_type})
+                _log({"message": "skipped unsupported media type", "media_type": media_type})
                 continue
 
             thumbnail_key = store_thumbnail(bucket, key, image_bytes)
@@ -212,11 +212,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             _log(
                 {
                     "message": "indexed",
-                    "bucket": bucket,
-                    "key": key,
-                    "mood": metadata.mood,
-                    "scene_type": metadata.scene_type,
-                    "thumbnail_key": thumbnail_key,
+                    "thumbnail_generated": thumbnail_key is not None,
                     "latency_ms": latency_ms,
                 }
             )
