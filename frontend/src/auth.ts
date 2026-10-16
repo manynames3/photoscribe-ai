@@ -146,6 +146,35 @@ export function signIn(email: string, password: string): Promise<AuthSession> {
   });
 }
 
+export function requestPasswordReset(email: string): Promise<void> {
+  const user = new CognitoUser({
+    Pool: userPool(),
+    Username: email.trim().toLowerCase(),
+  });
+
+  return new Promise((resolve, reject) => {
+    user.forgotPassword({
+      inputVerificationCode: () => resolve(),
+      onFailure: (error) => reject(error),
+      onSuccess: () => resolve(),
+    });
+  });
+}
+
+export function confirmPasswordReset(email: string, code: string, newPassword: string): Promise<void> {
+  const user = new CognitoUser({
+    Pool: userPool(),
+    Username: email.trim().toLowerCase(),
+  });
+
+  return new Promise((resolve, reject) => {
+    user.confirmPassword(code.trim(), newPassword, {
+      onFailure: (error) => reject(error),
+      onSuccess: () => resolve(),
+    });
+  });
+}
+
 export function completeNewPassword(newPassword: string): Promise<AuthSession> {
   if (!pendingNewPasswordUser) {
     return Promise.reject(new Error("No pending temporary-password session."));
