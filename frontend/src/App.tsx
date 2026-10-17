@@ -497,6 +497,12 @@ export function App() {
           {permittedWorkspaceView === "library" ? (
             <div className="workspace-library" id="library">
               <section className="workspace-search-surface" aria-label="Photo search">
+                {!hasSubmittedSearch && !isLoading ? (
+                  <div className="library-search-prompt" id="library-search-prompt">
+                    <h2>Start with a keyword</h2>
+                    <p>Search for a person, place or event, such as “staff headshot” or “building”. Then refine the results by tone, photo type or lighting.</p>
+                  </div>
+                ) : null}
                 <SearchBar
                   disabled={isLoading}
                   onChange={setQuery}
@@ -541,9 +547,11 @@ export function App() {
                     </div>
                   </div>
 
-                  <div className={`mobile-filter-content${isFiltersOpen ? " is-open" : ""}`}>
+                  <div className={`mobile-filter-content${isFiltersOpen ? " is-open" : ""}`}
+                    role="group" aria-label="Refine search results" aria-describedby={!hasSubmittedSearch ? "library-filter-hint" : undefined}>
+                    {!hasSubmittedSearch ? <p className="library-filter-hint" id="library-filter-hint">Search first to enable filters.</p> : null}
                     <FilterPanel
-                      disabled={isLoading}
+                      disabled={isLoading || !hasSubmittedSearch}
                       filters={filters}
                       onChange={handleFilterChange}
                       onClear={() => handleFilterChange({})}

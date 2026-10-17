@@ -1,4 +1,9 @@
 /* Open Sheet: photo-first library and a focused review desk. */
+.library-search-prompt { padding: 24px 0 20px; border-top: 1px solid #d9e3e7; }
+.workspace-v2 .library-search-prompt h2 { font: 600 28px/1.2 var(--cf-sans); color: #203842; margin: 0 0 12px; }
+.library-search-prompt p { color: #526a73; font-size: 18px; line-height: 1.5; max-width: 680px; margin: 0; }
+.library-filter-hint { font-size: 14px; color: #526a73; margin: 0 0 8px; }
+.workspace-v2 .filter-stack select:disabled { background: #f3f6f7; color: #657981; cursor: not-allowed; }
 .workspace-v2 {
   --ws-brand: #006b75;
   --ws-brand-dark: #005761;

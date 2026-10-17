@@ -10,9 +10,9 @@ const authStorage = {
 
 const mountedRoots: Array<{ root: Root; container: HTMLDivElement }> = [];
 
-async function renderApp(path = "/app") {
+async function renderApp(path = "/app", apiUrl = "") {
   vi.resetModules();
-  vi.stubEnv("VITE_API_URL", "");
+  vi.stubEnv("VITE_API_URL", apiUrl);
   window.history.pushState({}, "", path);
 
   const { App } = await import("./App");
@@ -97,6 +97,24 @@ describe("App workspace access", () => {
     expect(container.querySelector(".results-panel")).not.toBeNull();
     expect(container.textContent).toContain("Sample data");
     expect(container.querySelectorAll(".photo-card").length).toBeGreaterThan(0);
+  });
+
+  it("prompts for a keyword and locks filters until the first search completes", async () => {
+    const search = vi.fn((query: string) => Promise.resolve({ query, results: [], mode: "api", message: "Search complete." }));
+    vi.doMock("./api", () => ({ searchPhotos: search }));
+    signInAsStaff();
+    const container = await renderApp("/app", "https://api.example.test");
+    expect(container.querySelector(".library-search-prompt h2")?.textContent).toBe("Start with a keyword");
+    expect(container.textContent).toContain("Search first to enable filters.");
+    const filters = Array.from(container.querySelectorAll<HTMLSelectElement>(".filter-stack select"));
+    expect(filters).toHaveLength(3);
+    expect(filters.every((filter) => filter.disabled)).toBe(true);
+    expect(search).not.toHaveBeenCalled();
+    await act(async () => container.querySelector<HTMLButtonElement>(".browse-card")!.click());
+    expect(search).toHaveBeenCalledWith("approved campaign assets", {});
+    expect(container.querySelector(".library-search-prompt")).toBeNull();
+    expect(container.querySelector(".library-filter-hint")).toBeNull();
+    expect(filters.every((filter) => !filter.disabled)).toBe(true);
   });
 
   it("keeps staff tools in focused workspace views", async () => {
