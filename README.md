@@ -33,6 +33,8 @@ Use the public landing page to understand the product, then open [`/app`](https:
 
 Workspace sections and submitted queries survive reloads through URL state. Selected uploads remain available across in-app navigation. Photo details support keyboard focus and scrollable review controls on smaller screens. Cognito refreshes sessions before private requests; rejected sessions return to sign-in.
 
+The photo-first library uses compact metadata filters, clearance tabs for the current search results, and a side inspector. Review keeps the queue, full photo, and existing policy editor together; smaller screens stack the same workflow without hiding policy fields. Counts describe returned results, not the entire library.
+
 The public surface explains the product; the workspace behaves like a private staff tool. Upload and review tools require staff access because image ingest triggers real AWS processing cost.
 
 For a controlled buyer or hiring-manager walkthrough, use the [pilot runbook](docs/pilot-runbook.md).

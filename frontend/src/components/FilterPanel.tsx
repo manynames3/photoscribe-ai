@@ -30,33 +30,14 @@ export function FilterPanel({ disabled = false, filters, onChange, onClear }: Fi
     <div className="filter-stack">
       {FILTER_GROUPS.map((group) => (
         <section key={group.key}>
-          <div className="filter-group-header">
-            <h3>{group.label}</h3>
-            {filters[group.key] ? <span className="filter-badge">{filters[group.key]}</span> : null}
-          </div>
-          <div className="filter-pill-row">
-            {group.options.map((option) => {
-              const isActive = filters[group.key] === option;
-
-              return (
-                <button
-                  key={option}
-                  aria-pressed={isActive}
-                  className={`filter-pill${isActive ? " is-active" : ""}`}
-                  disabled={disabled}
-                  onClick={() => {
-                    onChange({
-                      ...filters,
-                      [group.key]: isActive ? undefined : option,
-                    });
-                  }}
-                  type="button"
-                >
-                  {option.replace(/_/g, " ")}
-                </button>
-              );
-            })}
-          </div>
+          <label>
+            <span>{group.label}</span>
+            <select disabled={disabled} value={filters[group.key] ?? ""}
+              onChange={(event) => onChange({ ...filters, [group.key]: event.target.value || undefined })}>
+              <option value="">All {group.label.toLowerCase()}</option>
+              {group.options.map((option) => <option key={option} value={option}>{option.replace(/_/g, " ")}</option>)}
+            </select>
+          </label>
         </section>
       ))}
 

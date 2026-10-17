@@ -8,6 +8,7 @@ type PhotoModalProps = {
   authSession: AuthSession | null;
   canCurate: boolean;
   initialTab?: DossierTab;
+  presentation?: "modal" | "inspector" | "review";
   onClose: () => void;
   onPhotoUpdated?: (photo: PhotoResult) => void;
   photo: PhotoResult | null;
@@ -93,7 +94,7 @@ function splitValues(value: string) {
     .filter(Boolean);
 }
 
-export function PhotoModal({ authSession, canCurate, initialTab = "overview", onClose, onPhotoUpdated, photo }: PhotoModalProps) {
+export function PhotoModal({ authSession, canCurate, initialTab = "overview", presentation = "modal", onClose, onPhotoUpdated, photo }: PhotoModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -121,7 +122,7 @@ export function PhotoModal({ authSession, canCurate, initialTab = "overview", on
       if (event.key === "Escape") {
         closeRef.current();
       }
-      if (event.key === "Tab") {
+      if (event.key === "Tab" && presentation === "modal") {
         const controls = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
           'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
         ) ?? []).filter((control) => control.getClientRects().length > 0);
@@ -136,9 +137,9 @@ export function PhotoModal({ authSession, canCurate, initialTab = "overview", on
     }
 
     const previousFocus = document.activeElement as HTMLElement | null;
-    dialogRef.current?.querySelector<HTMLButtonElement>(".modal-close")?.focus();
+    dialogRef.current?.querySelector<HTMLButtonElement>(".modal-close")?.focus({ preventScroll: true });
     const { overflow } = document.body.style;
-    document.body.style.overflow = "hidden";
+    if (presentation === "modal") document.body.style.overflow = "hidden";
     window.addEventListener("keydown", handleKeydown);
 
     return () => {
@@ -146,7 +147,7 @@ export function PhotoModal({ authSession, canCurate, initialTab = "overview", on
       window.removeEventListener("keydown", handleKeydown);
       previousFocus?.focus();
     };
-  }, [photo?.key]);
+  }, [photo?.key, presentation]);
 
   useEffect(() => {
     if (!photo) {
@@ -268,10 +269,10 @@ export function PhotoModal({ authSession, canCurate, initialTab = "overview", on
 
   return (
     <div
-      aria-modal="true"
+      aria-modal={presentation === "modal" ? true : undefined}
       aria-labelledby="photo-detail-title"
       ref={dialogRef}
-      className="modal-backdrop"
+      className={`modal-backdrop photo-${presentation}`}
       onClick={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
@@ -281,7 +282,7 @@ export function PhotoModal({ authSession, canCurate, initialTab = "overview", on
     >
       <div className={`modal-panel${activeDossierTab === "edit" ? " is-editing" : ""}`}>
         <button className="modal-close" onClick={onClose} type="button">
-          Close
+          {presentation === "review" ? "Close photo" : "Close"}
         </button>
 
         <div className="modal-media">
@@ -303,6 +304,10 @@ export function PhotoModal({ authSession, canCurate, initialTab = "overview", on
             </div>
 
             <h3 id="photo-detail-title">{photo.seoCaption || photo.description}</h3>
+            {photo.imageUrl ? <a className="photo-full-size" href={photo.imageUrl} target="_blank" rel="noreferrer">View full size</a> : null}
+            {presentation === "inspector" && canCurate && assetClearance(photo).tone !== "approved" && activeDossierTab !== "edit" ? (
+              <button className="inspector-resolve" type="button" onClick={() => setActiveDossierTab("edit")}>Resolve review</button>
+            ) : null}
             {activeDossierTab !== "edit" ? <p>{photo.description}</p> : null}
           </div>
 

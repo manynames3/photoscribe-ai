@@ -7,6 +7,7 @@ type ReviewQueueProps = {
   canReview: boolean;
   onOpen: (photo: PhotoResult) => void;
   revision?: number;
+  selectedKey?: string;
 };
 
 function reviewReason(item: PhotoResult) {
@@ -25,7 +26,7 @@ function reviewReason(item: PhotoResult) {
   return "Review required";
 }
 
-export function ReviewQueue({ canReview, onOpen, revision = 0 }: ReviewQueueProps) {
+export function ReviewQueue({ canReview, onOpen, revision = 0, selectedKey }: ReviewQueueProps) {
   const [items, setItems] = useState<PhotoResult[]>([]);
   const [status, setStatus] = useState("Loading review queue...");
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -60,7 +61,7 @@ export function ReviewQueue({ canReview, onOpen, revision = 0 }: ReviewQueueProp
   }
 
   return (
-    <section className="ops-panel">
+    <section className="ops-panel review-queue-panel">
       <div className="sidebar-header">
         <div>
           <p className="sidebar-label">Review queue</p>
@@ -75,7 +76,7 @@ export function ReviewQueue({ canReview, onOpen, revision = 0 }: ReviewQueueProp
       {items.length ? (
         <div className="review-list">
           {items.map((item) => (
-            <button className="review-row" key={item.key} onClick={() => onOpen(item)} type="button">
+            <button aria-pressed={selectedKey === item.key} className="review-row" key={item.key} onClick={() => onOpen(item)} type="button">
               {item.thumbnailUrl ? <img alt={item.altText} src={item.thumbnailUrl} /> : null}
               <span>
                 <strong>{item.seoCaption || item.description}</strong>

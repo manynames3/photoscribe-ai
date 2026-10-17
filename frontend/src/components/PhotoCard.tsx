@@ -4,25 +4,14 @@ import { assetClearance } from "../assetClearance";
 type PhotoCardProps = {
   onOpen: (result: PhotoResult) => void;
   result: PhotoResult;
+  selected?: boolean;
 };
 
 function labelize(value: string | undefined) {
   return value ? value.replace(/_/g, " ") : "not classified";
 }
 
-function policyClass(value: string | undefined) {
-  if (value === "approved") {
-    return " is-approved";
-  }
-
-  if (value === "risk" || value === "restricted" || value === "missing" || value === "expired") {
-    return " is-risk";
-  }
-
-  return "";
-}
-
-export function PhotoCard({ onOpen, result }: PhotoCardProps) {
+export function PhotoCard({ onOpen, result, selected = false }: PhotoCardProps) {
   const department = result.ownerDepartment || "Unassigned";
   const consent = result.consentStatus || "missing";
   const usageRights = result.usageRights || "unknown";
@@ -31,6 +20,7 @@ export function PhotoCard({ onOpen, result }: PhotoCardProps) {
   return (
     <button
       className="photo-card"
+      aria-pressed={selected}
       onClick={() => onOpen(result)}
       type="button"
     >
@@ -49,10 +39,12 @@ export function PhotoCard({ onOpen, result }: PhotoCardProps) {
 
       <div className="photo-card-body">
         <div className="photo-card-meta">
-          <span className={`meta-pill${policyClass(clearance.tone)}`}>{clearance.label}</span>
+          <span className={`meta-pill is-${clearance.tone}`}>{clearance.label}</span>
           <span className="meta-subtle">{labelize(result.sceneType)}</span>
         </div>
-        <p className="photo-description">{result.description}</p>
+        <p className="photo-description">{result.seoCaption || result.description}</p>
+        <p className="photo-owner">{department}</p>
+        {clearance.tone !== "approved" ? <span className="photo-resolve">Review details <span aria-hidden="true">&rarr;</span></span> : null}
         <dl className="asset-record-grid">
           <div>
             <dt>Owner</dt>

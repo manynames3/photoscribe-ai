@@ -122,6 +122,33 @@ describe("App workspace access", () => {
     expect(container.querySelector(".ops-panel")).toBeNull();
   });
 
+  it("filters only the returned photos by clearance and restores all results", async () => {
+    signInAsStaff();
+    const container = await renderApp();
+    const count = container.querySelectorAll(".photo-card").length;
+    const tabs = container.querySelectorAll<HTMLButtonElement>(".workspace-metric-strip button");
+    expect(tabs.length).toBe(4);
+    await act(async () => tabs[1].click());
+    expect(tabs[1].getAttribute("aria-pressed")).toBe("true");
+    expect(Array.from(container.querySelectorAll(".photo-card .meta-pill")).every((label) => label.classList.contains("is-approved"))).toBe(true);
+    await act(async () => tabs[0].click());
+    expect(container.querySelectorAll(".photo-card").length).toBe(count);
+  });
+
+  it("opens review details beside the queue without locking page scrolling", async () => {
+    signInAsStaff();
+    const container = await renderApp("/app#review");
+    const row = container.querySelector<HTMLButtonElement>(".review-row");
+    expect(row).not.toBeNull();
+    await act(async () => row!.click());
+    expect(container.querySelector(".review-workbench .photo-review .curator-panel")).not.toBeNull();
+    expect(container.querySelector(".photo-review")?.getAttribute("aria-modal")).toBeNull();
+    expect(document.body.style.overflow).not.toBe("hidden");
+    expect(row!.getAttribute("aria-pressed")).toBe("true");
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+    expect(container.querySelector(".photo-review")).toBeNull();
+  });
+
   it("preserves selected uploads across workspace navigation", async () => {
     signInAsStaff();
     const container = await renderApp("/app#upload");

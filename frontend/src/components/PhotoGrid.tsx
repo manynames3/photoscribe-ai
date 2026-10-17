@@ -8,9 +8,10 @@ type PhotoGridProps = {
   results: PhotoResult[];
   submittedQuery: string;
   viewMode: "grid" | "list";
+  selectedKey?: string;
 };
 
-export function PhotoGrid({ isLoading, onOpen, results, submittedQuery, viewMode }: PhotoGridProps) {
+export function PhotoGrid({ isLoading, onOpen, results, submittedQuery, viewMode, selectedKey }: PhotoGridProps) {
   if (isLoading) {
     return (
       <section aria-label="Loading results" className={`photo-grid is-${viewMode}`}>
@@ -39,7 +40,7 @@ export function PhotoGrid({ isLoading, onOpen, results, submittedQuery, viewMode
   return (
     <section aria-label="Search results" className={`photo-grid is-${viewMode}`}>
       {results.map((result) => (
-        <PhotoCard key={result.id} onOpen={onOpen} result={result} />
+        <PhotoCard key={result.id} onOpen={onOpen} result={result} selected={selectedKey === result.key} />
       ))}
     </section>
   );

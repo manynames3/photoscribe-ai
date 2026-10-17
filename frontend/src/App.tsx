@@ -75,6 +75,7 @@ export function App() {
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [submittedQuery, setSubmittedQuery] = useState("");
   const [resultView, setResultView] = useState<"grid" | "list">("grid");
+  const [clearanceView, setClearanceView] = useState("all");
   const [results, setResults] = useState<PhotoResult[]>([]);
   const [filters, setFilters] = useState<SearchFilters>({});
   const [status, setStatus] = useState("Ready to search.");
@@ -304,6 +305,10 @@ export function App() {
   const approvedCount = results.filter((result) => assetClearance(result).tone === "approved").length;
   const pendingReviewCount = results.filter((result) => assetClearance(result).tone !== "approved" && result.visibility !== "restricted").length;
   const restrictedCount = results.filter((result) => result.visibility === "restricted").length;
+  const visibleResults = results.filter((result) => clearanceView === "all" ||
+    (clearanceView === "cleared" && assetClearance(result).tone === "approved") ||
+    (clearanceView === "review" && assetClearance(result).tone !== "approved" && result.visibility !== "restricted") ||
+    (clearanceView === "restricted" && result.visibility === "restricted"));
   const resultsLabel = hasSubmittedSearch ? "Matching photos" : "Browse";
   const resultsTitle = hasSubmittedSearch ? `“${submittedQuery}”` : "Common requests";
   const resultsMessage =
@@ -326,7 +331,7 @@ export function App() {
   const workspaceViewCopy: Record<WorkspaceView, { eyebrow: string; title: string; description: string }> = {
     library: {
       eyebrow: "Media library",
-      title: "Photos",
+      title: "Photo library",
       description: "Find approved assets and verify release context before reuse.",
     },
     upload: {
@@ -455,6 +460,7 @@ export function App() {
                   className={permittedWorkspaceView === item.view ? "is-active" : ""}
                   key={item.view}
                   onClick={() => {
+                    setSelectedPhoto(null);
                     setWorkspaceView(item.view);
                     if (item.view === "upload") setHasOpenedUpload(true);
                     window.history.pushState({}, "", `${WORKSPACE_PATH}${window.location.search}#${item.view}`);
@@ -470,15 +476,18 @@ export function App() {
 
         </aside>
 
-        <section className="workspace-stage">
+        <section className={`workspace-stage${selectedPhoto && permittedWorkspaceView === "library" ? " has-inspector" : ""}`}>
           <header className="workspace-page-header">
             <div>
               <h1>{activeWorkspaceCopy.title}</h1>
             </div>
             {permittedWorkspaceView === "library" ? (
-              <span className={`workspace-environment${IS_PREVIEW_MODE ? " is-sample" : ""}`}>
+              <div className="library-heading-actions"><span className={`workspace-environment${IS_PREVIEW_MODE ? " is-sample" : ""}`}>
                 {IS_PREVIEW_MODE ? "Sample data" : "Private library"}
-              </span>
+              </span><button className="library-upload" type="button" onClick={() => {
+                setSelectedPhoto(null); setWorkspaceView("upload"); setHasOpenedUpload(true);
+                window.history.pushState({}, "", `${WORKSPACE_PATH}${window.location.search}#upload`);
+              }}>Upload photos</button></div>
             ) : null}
           </header>
           {IS_PREVIEW_MODE && permittedWorkspaceView === "library" ? (
@@ -501,11 +510,13 @@ export function App() {
 
               {showMetrics && hasSubmittedSearch && !isLoading ? (
                 <div className="workspace-metric-strip" aria-label="Status of the results shown">
-                  {metricCards.map((metric) => (
-                    <div className={`workspace-metric is-${metric.tone}`} key={metric.label}>
+                  {metricCards.map((metric, index) => (
+                    <button type="button" aria-pressed={clearanceView === ["all", "cleared", "review", "restricted"][index]}
+                      onClick={() => setClearanceView(["all", "cleared", "review", "restricted"][index])}
+                      className={`workspace-metric is-${metric.tone}`} key={metric.label}>
                       <span>{metric.label}</span>
                       <strong>{metric.value}</strong>
-                    </div>
+                    </button>
                   ))}
                 </div>
               ) : null}
@@ -618,9 +629,10 @@ export function App() {
                   ) : null}
 
                   <PhotoGrid
+                    selectedKey={selectedPhoto?.key}
                     isLoading={isLoading}
                     onOpen={setSelectedPhoto}
-                    results={results}
+                    results={visibleResults}
                     viewMode={resultView}
                     submittedQuery={submittedQuery}
                   />
@@ -642,7 +654,12 @@ export function App() {
           ) : null}
 
           {permittedWorkspaceView === "review" && canReview ? (
-            <ReviewQueue canReview={canReview} onOpen={setSelectedPhoto} revision={reviewRevision} />
+            <div className={`review-workbench${selectedPhoto ? " has-photo" : ""}`}>
+              <ReviewQueue canReview={canReview} onOpen={setSelectedPhoto} revision={reviewRevision} selectedKey={selectedPhoto?.key} />
+              {selectedPhoto ? <PhotoModal authSession={authSession} canCurate={canReview} initialTab="edit"
+                presentation="review" photo={selectedPhoto} onClose={() => setSelectedPhoto(null)} onPhotoUpdated={handlePhotoUpdated} /> :
+                <p className="review-selection-hint">Select a photo to check its owner, consent and usage rights.</p>}
+            </div>
           ) : null}
 
           {permittedWorkspaceView === "access" && canAdmin ? <AdminPanel canAdmin={canAdmin} /> : null}
@@ -661,8 +678,9 @@ export function App() {
         authSession={authSession}
         canCurate={canReview}
         initialTab={permittedWorkspaceView === "review" ? "edit" : "overview"}
+        presentation="inspector"
         onPhotoUpdated={handlePhotoUpdated}
-        photo={selectedPhoto}
+        photo={permittedWorkspaceView === "library" ? selectedPhoto : null}
         onClose={() => setSelectedPhoto(null)}
       />
     </>
